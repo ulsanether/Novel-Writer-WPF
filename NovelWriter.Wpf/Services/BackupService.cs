@@ -1,3 +1,6 @@
+using System.IO;
+using System.Linq;
+
 namespace NovelWriter.Wpf.Services;
 
 /// <summary>

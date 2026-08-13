@@ -47,7 +47,7 @@
                     <TextBlock Text="일일 목표" VerticalAlignment="Center" Margin="0,0,6,0" />
                     <TextBox Width="80" Text="{Binding DailyWordGoal, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,0" />
                     <ProgressBar Width="180" Height="18" Value="{Binding DailyProgressPercent}" Maximum="100" />
-                    <TextBlock Text="{Binding DailyProgressPercent, StringFormat= {0}%}" Margin="6,0,0,0" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding DailyProgressPercent, StringFormat={}{0}%}" Margin="6,0,0,0" VerticalAlignment="Center" />
                 </WrapPanel>
             </StackPanel>
         </Border>
