@@ -1,0 +1,84 @@
+﻿<Window x:Class="NovelWriter.Wpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:NovelWriter.Wpf.ViewModels"
+        mc:Ignorable="d"
+        Title="Novel Writer"
+        Height="768"
+        Width="1280"
+        WindowStartupLocation="CenterScreen"
+        MouseMove="Window_MouseMove">
+    <Window.InputBindings>
+        <KeyBinding Key="F11" Command="{Binding ToggleFocusModeCommand}" />
+    </Window.InputBindings>
+
+    <Grid Background="{Binding EditorBackground}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border x:Name="ChromePanel" Grid.Row="0" Background="#33000000" Padding="10">
+            <StackPanel>
+                <WrapPanel Margin="0,0,0,8">
+                    <TextBox Width="260"
+                             Margin="0,0,10,0"
+                             VerticalContentAlignment="Center"
+                             Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Content="{Binding SaveText}" Command="{Binding SaveCommand}" Margin="0,0,6,0" />
+                    <Button Content="{Binding ExportText}" Command="{Binding ExportCommand}" Margin="0,0,6,0" />
+                    <Button Content="{Binding AiFixText}" Command="{Binding FixTyposCommand}" Margin="0,0,6,0" />
+                    <Button Content="{Binding FocusText}" Command="{Binding ToggleFocusModeCommand}" Margin="0,0,12,0" />
+                    <Button Content="다크" Command="{Binding SetDarkThemeCommand}" Margin="0,0,4,0" />
+                    <Button Content="라이트" Command="{Binding SetLightThemeCommand}" Margin="0,0,4,0" />
+                    <Button Content="커스텀" Command="{Binding SetCustomThemeCommand}" Margin="0,0,12,0" />
+                    <Button Content="한국어" Command="{Binding SetKoreanCommand}" Margin="0,0,4,0" />
+                    <Button Content="English" Command="{Binding SetEnglishCommand}" />
+                </WrapPanel>
+
+                <WrapPanel>
+                    <TextBlock Text="타이머(분)" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBox Width="60" Text="{Binding FocusMinutes, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,0" />
+                    <Button Content="{Binding RemainingTimerText}" Command="{Binding ToggleFocusTimerCommand}" Margin="0,0,6,0" />
+                    <Button Content="Reset" Command="{Binding ResetTimerCommand}" Margin="0,0,12,0" />
+                    <TextBlock Text="일일 목표" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBox Width="80" Text="{Binding DailyWordGoal, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,0" />
+                    <ProgressBar Width="180" Height="18" Value="{Binding DailyProgressPercent}" Maximum="100" />
+                    <TextBlock Text="{Binding DailyProgressPercent, StringFormat= {0}%}" Margin="6,0,0,0" VerticalAlignment="Center" />
+                </WrapPanel>
+            </StackPanel>
+        </Border>
+
+        <TextBox Grid.Row="1"
+                 Margin="20"
+                 FontSize="24"
+                 AcceptsReturn="True"
+                 AcceptsTab="True"
+                 TextWrapping="Wrap"
+                 VerticalScrollBarVisibility="Auto"
+                 HorizontalScrollBarVisibility="Disabled"
+                 SpellCheck.IsEnabled="True"
+                 xml:lang="ko-KR"
+                 Foreground="{Binding EditorForeground}"
+                 Background="{Binding EditorBackground}"
+                 BorderThickness="0"
+                 Text="{Binding Content, UpdateSourceTrigger=PropertyChanged}" />
+
+        <Border Grid.Row="2" Background="#22000000" Padding="10">
+            <DockPanel>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                    <TextBlock Foreground="{Binding EditorForeground}" Margin="0,0,12,0" Text="{Binding StatsText}" FontWeight="Bold" />
+                    <TextBlock Foreground="{Binding EditorForeground}" Margin="0,0,10,0" Text="{Binding WordCount, StringFormat=단어: {0}}" />
+                    <TextBlock Foreground="{Binding EditorForeground}" Margin="0,0,10,0" Text="{Binding CharacterCount, StringFormat=문자: {0}}" />
+                    <TextBlock Foreground="{Binding EditorForeground}" Margin="0,0,10,0" Text="{Binding PageCount, StringFormat=페이지: {0}}" />
+                    <TextBlock Foreground="{Binding EditorForeground}" Margin="0,0,10,0" Text="{Binding ParagraphCount, StringFormat=단락: {0}}" />
+                    <TextBlock Foreground="{Binding EditorForeground}" Margin="0,0,10,0" Text="{Binding SentenceCount, StringFormat=문장: {0}}" />
+                </StackPanel>
+                <TextBlock Foreground="{Binding EditorForeground}" HorizontalAlignment="Right" Text="{Binding StatusMessage}" />
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>
