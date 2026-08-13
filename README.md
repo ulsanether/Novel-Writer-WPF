@@ -1,6 +1,6 @@
-# Claude에 Novel Writer WPF 개발 요청하기
+# Claude에 Novel Writer WPF 개발 
 
-Novel Writer (WPF 기반 소설 작가용 집중형 에디터)를 Claude에게 요청할 때 사용할 프롬프트 가이드입니다.
+Novel Writer (WPF 기반 소설 작가용 집중형 에디터)
 
 ---
 
