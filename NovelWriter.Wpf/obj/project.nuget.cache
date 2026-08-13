@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "dgSpecHash": "+g/v78NKB6c=",
+  "success": true,
+  "projectFilePath": "/home/runner/work/Novel-Writer-WPF/Novel-Writer-WPF/NovelWriter.Wpf/NovelWriter.Wpf.csproj",
+  "expectedPackageFiles": [
+    "/tmp/codeql-scratch-a700fb99f1e2293c/dbs/csharp/working/packages/communitytoolkit.mvvm/8.4.0/communitytoolkit.mvvm.8.4.0.nupkg.sha512",
+    "/tmp/codeql-scratch-a700fb99f1e2293c/dbs/csharp/working/packages/documentformat.openxml/3.3.0/documentformat.openxml.3.3.0.nupkg.sha512",
+    "/tmp/codeql-scratch-a700fb99f1e2293c/dbs/csharp/working/packages/documentformat.openxml.framework/3.3.0/documentformat.openxml.framework.3.3.0.nupkg.sha512",
+    "/tmp/codeql-scratch-a700fb99f1e2293c/dbs/csharp/working/packages/stub.system.data.sqlite.core.netstandard/1.0.119/stub.system.data.sqlite.core.netstandard.1.0.119.nupkg.sha512",
+    "/tmp/codeql-scratch-a700fb99f1e2293c/dbs/csharp/working/packages/system.data.sqlite.core/1.0.119/system.data.sqlite.core.1.0.119.nupkg.sha512",
+    "/tmp/codeql-scratch-a700fb99f1e2293c/dbs/csharp/working/packages/system.io.packaging/8.0.1/system.io.packaging.8.0.1.nupkg.sha512",
+    "/tmp/codeql-scratch-a700fb99f1e2293c/dbs/csharp/working/packages/microsoft.netcore.app.ref/8.0.29/microsoft.netcore.app.ref.8.0.29.nupkg.sha512",
+    "/tmp/codeql-scratch-a700fb99f1e2293c/dbs/csharp/working/packages/microsoft.windowsdesktop.app.ref/8.0.29/microsoft.windowsdesktop.app.ref.8.0.29.nupkg.sha512",
+    "/tmp/codeql-scratch-a700fb99f1e2293c/dbs/csharp/working/packages/microsoft.aspnetcore.app.ref/8.0.29/microsoft.aspnetcore.app.ref.8.0.29.nupkg.sha512",
+    "/tmp/codeql-scratch-a700fb99f1e2293c/dbs/csharp/working/packages/microsoft.netcore.app.host.linux-x64/8.0.29/microsoft.netcore.app.host.linux-x64.8.0.29.nupkg.sha512"
+  ],
+  "logs": []
+}
