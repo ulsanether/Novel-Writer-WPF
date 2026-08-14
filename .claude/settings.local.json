@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build *)",
+      "WebSearch",
+      "Bash(timeout 180 dotnet add NovelWriter.Wpf/NovelWriter.Wpf.csproj package WeCantSpell.Hunspell)",
+      "Bash(gh release *)",
+      "Bash(curl -sL \"https://api.github.com/repos/spellcheck-ko/hunspell-dict-ko/releases/latest\")",
+      "Bash(rm -rf C:/Users/hakmin/AppData/Local/Temp/claude/D--GIT-WriterProject-Novel-Writer-WPF/27001c10-8075-4ef5-9568-114e933de954/scratchpad/huntest)",
+      "Bash(mkdir -p C:/Users/hakmin/AppData/Local/Temp/claude/D--GIT-WriterProject-Novel-Writer-WPF/27001c10-8075-4ef5-9568-114e933de954/scratchpad/huntest)",
+      "Bash(dotnet new *)",
+      "Bash(dotnet add *)",
+      "PowerShell(Get-Process *)"
+    ]
+  }
+}

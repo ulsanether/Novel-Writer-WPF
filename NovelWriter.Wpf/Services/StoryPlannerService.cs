@@ -1,0 +1,537 @@
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using NovelWriter.Wpf.Models;
+
+namespace NovelWriter.Wpf.Services;
+
+/// <summary>
+/// 원고에서 추출한 작품 설정과 등장인물입니다.
+/// </summary>
+public sealed record ExtractedSettings(
+    string Genre,
+    string Era,
+    string World,
+    string CoreEvent,
+    string Ending,
+    IReadOnlyList<NovelWriter.Wpf.Models.StoryCharacter> Characters);
+
+/// <summary>
+/// 시놉시스 → 장 → Scene → 본문을 각각 별도 AI 작업으로 생성합니다. (로컬 모델용 컨텍스트 최소화)
+/// </summary>
+public sealed class StoryPlannerService
+{
+    private readonly ChatService _chat;
+
+    /// <summary>
+    /// 서비스를 초기화합니다.
+    /// </summary>
+    public StoryPlannerService(ChatService chat)
+    {
+        _chat = chat;
+    }
+
+    /// <summary>
+    /// 전체 시놉시스를 생성합니다. (본문은 쓰지 않음)
+    /// </summary>
+    public async Task<string?> GenerateSynopsisAsync(StoryProject project)
+    {
+        const string system =
+            "당신은 소설 기획 전문가입니다. 주어진 작품 설정으로 '전체 시놉시스'만 작성하세요. "
+            + "장면 묘사나 대사 같은 본문은 쓰지 말고, 큰 사건의 흐름만 8~15문장으로 요약하세요. 한국어로 작성합니다.";
+        var user = BuildBible(project) + "\n\n[요청] 위 설정에 맞는 전체 시놉시스를 작성하세요.";
+        return await EnsureKoreanAsync(await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) }));
+    }
+
+    /// <summary>
+    /// 시놉시스를 바탕으로 장 구성을 생성합니다.
+    /// </summary>
+    public async Task<List<ChapterNode>> GenerateChaptersAsync(StoryProject project)
+    {
+        const string system = "당신은 소설 구조 설계자입니다. 요청한 JSON 배열만 출력하고 다른 설명은 절대 쓰지 마세요. 모든 JSON 문자열 값은 반드시 한국어로 작성하고 영어를 쓰지 마세요.";
+        var user = BuildBible(project)
+            + $"\n\n[전체 시놉시스]\n{project.Synopsis}\n\n"
+            + $"[요청] 이 작품을 정확히 {Math.Max(1, project.ChapterCount)}개의 장으로 나누세요. "
+            + "각 장을 JSON 배열의 원소로 출력하세요. 각 원소는 다음 키를 가집니다: "
+            + "\"title\"(장 제목), \"summary\"(장 요약), \"purpose\"(장 목적), \"conflict\"(갈등), \"reveal\"(반전), \"ending\"(종료 상태). "
+            + "JSON 배열만 출력하세요.";
+
+        var reply = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });
+        var chapters = new List<ChapterNode>();
+
+        foreach (var element in EnumerateJsonArray(reply))
+        {
+            chapters.Add(new ChapterNode
+            {
+                Title = await EnsureKoreanAsync(GetString(element, "title")),
+                Summary = await EnsureKoreanAsync(GetString(element, "summary")),
+                Purpose = await EnsureKoreanAsync(GetString(element, "purpose")),
+                Conflict = await EnsureKoreanAsync(GetString(element, "conflict")),
+                Reveal = await EnsureKoreanAsync(GetString(element, "reveal")),
+                Ending = await EnsureKoreanAsync(GetString(element, "ending"))
+            });
+        }
+
+        return chapters;
+    }
+
+    /// <summary>
+    /// 한 장을 Scene 단위로 분할합니다.
+    /// </summary>
+    public async Task<List<SceneNode>> GenerateScenesAsync(StoryProject project, ChapterNode chapter)
+    {
+        const string system = "당신은 소설 구조 설계자입니다. 요청한 JSON 배열만 출력하고 다른 설명은 절대 쓰지 마세요. 모든 JSON 문자열 값은 반드시 한국어로 작성하고 영어를 쓰지 마세요.";
+        var user = BuildBible(project)
+            + $"\n\n[전체 시놉시스 요약]\n{Shorten(project.Synopsis, 600)}\n\n"
+            + $"[현재 장]\n제목: {chapter.Title}\n요약: {chapter.Summary}\n목적: {chapter.Purpose}\n갈등: {chapter.Conflict}\n반전: {chapter.Reveal}\n종료: {chapter.Ending}\n\n"
+            + "[요청] 이 장을 3~6개의 Scene으로 나누세요. 각 Scene을 JSON 배열의 원소로 출력하세요. 각 원소 키: "
+            + "\"title\"(Scene 제목), \"summary\"(요약), \"goal\"(목표), \"characters\"(등장인물), \"location\"(장소), \"conflict\"(갈등), \"result\"(결과), \"nextLink\"(다음 Scene 연결). "
+            + "JSON 배열만 출력하세요.";
+
+        var reply = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });
+        var scenes = new List<SceneNode>();
+
+        foreach (var element in EnumerateJsonArray(reply))
+        {
+            scenes.Add(new SceneNode
+            {
+                Title = await EnsureKoreanAsync(GetString(element, "title")),
+                Summary = await EnsureKoreanAsync(GetString(element, "summary")),
+                Goal = await EnsureKoreanAsync(GetString(element, "goal")),
+                Characters = await EnsureKoreanAsync(GetString(element, "characters")),
+                Location = await EnsureKoreanAsync(GetString(element, "location")),
+                Conflict = await EnsureKoreanAsync(GetString(element, "conflict")),
+                Result = await EnsureKoreanAsync(GetString(element, "result")),
+                NextLink = await EnsureKoreanAsync(GetString(element, "nextLink"))
+            });
+        }
+
+        return scenes;
+    }
+
+    /// <summary>
+    /// 한 Scene의 실제 본문을 작성합니다.
+    /// </summary>
+    /// <param name="dialogueRatio">대사 비율(0~100). 0=묘사만, 100=대사만.</param>
+    public async Task<string?> GenerateSceneContentAsync(
+        StoryProject project, ChapterNode chapter, SceneNode scene, string previousSceneSummary, int dialogueRatio = 50)
+    {
+        const string system =
+            "당신은 소설가입니다. 주어진 설정과 Scene 조건에 맞는 '본문'을 한국어로 작성하세요. "
+            + "설정을 벗어나거나 금지사항을 위반하지 마세요. 자연스러운 소설 문장으로만 작성하고, 메타 설명은 넣지 마세요.";
+        var user = BuildBible(project)
+            + $"\n\n[전체 시놉시스 요약]\n{Shorten(project.Synopsis, 500)}\n\n"
+            + $"[현재 장]\n{chapter.Title} — {chapter.Summary}\n\n"
+            + (string.IsNullOrWhiteSpace(previousSceneSummary) ? string.Empty : $"[이전 Scene]\n{previousSceneSummary}\n\n")
+            + $"[작성할 Scene]\n제목: {scene.Title}\n목표: {scene.Goal}\n등장인물: {scene.Characters}\n장소: {scene.Location}\n갈등: {scene.Conflict}\n결과: {scene.Result}\n\n"
+            + $"[문체 지시]\n{DialogueStyleInstruction(dialogueRatio)}\n\n"
+            + "[요청] 위 Scene의 본문을 작성하세요.";
+
+        return await EnsureKoreanAsync(await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) }));
+    }
+
+    /// <summary>
+    /// 대사/묘사 비율에 따른 문체 지시 문구를 만듭니다.
+    /// </summary>
+    private static string DialogueStyleInstruction(int dialogueRatio)
+    {
+        var ratio = Math.Clamp(dialogueRatio, 0, 100);
+        if (ratio >= 95)
+        {
+            return "이 본문은 거의 전부 인물의 '대사'로만 구성하세요. 서술·묘사는 최소화하고 대화(따옴표) 위주로 작성합니다.";
+        }
+
+        if (ratio <= 5)
+        {
+            return "이 본문은 대사 없이 '묘사와 서술'로만 구성하세요. 인물의 대사(따옴표 대화)를 넣지 마세요.";
+        }
+
+        return $"대사와 묘사의 비율을 대략 대사 {ratio}% / 묘사 {100 - ratio}%로 맞춰 작성하세요.";
+    }
+
+    /// <summary>
+    /// 한 Scene을 세부 비트로 나눈 뒤 각 비트를 여러 문단으로 작성해 이어붙입니다. (긴 본문)
+    /// </summary>
+    public async Task<string?> GenerateSceneContentDetailedAsync(
+        StoryProject project, ChapterNode chapter, SceneNode scene, string previousSceneSummary,
+        int dialogueRatio = 50, IProgress<string>? progress = null)
+    {
+        var beats = await GenerateSceneBeatsAsync(project, chapter, scene);
+        if (beats.Count == 0)
+        {
+            // 비트 분할 실패 시 기존 단일 생성으로 대체합니다.
+            return await GenerateSceneContentAsync(project, chapter, scene, previousSceneSummary, dialogueRatio);
+        }
+
+        var builder = new StringBuilder();
+        var previousProse = previousSceneSummary;
+
+        for (var i = 0; i < beats.Count; i++)
+        {
+            progress?.Report($"본문 작성 {i + 1}/{beats.Count} 비트...");
+
+            const string system =
+                "당신은 소설가입니다. 주어진 '비트(장면 조각)'를 서너 문단 이상의 생생한 소설 본문으로 작성하세요. "
+                + "인물의 대사·행동·심리·배경 묘사를 충분히 넣어 길고 몰입감 있게 쓰세요. "
+                + "설정과 금지사항을 지키고, 자연스러운 소설 문장으로만 작성하세요. 한국어로 작성합니다.";
+            var user = BuildBible(project)
+                + $"\n\n[현재 장]\n{chapter.Title} — {chapter.Summary}\n"
+                + $"[현재 Scene]\n{scene.Title} / 목표: {scene.Goal} / 장소: {scene.Location} / 등장인물: {scene.Characters}\n\n"
+                + (string.IsNullOrWhiteSpace(previousProse) ? string.Empty : $"[직전 내용 요약]\n{Shorten(previousProse, 400)}\n\n")
+                + $"[문체 지시]\n{DialogueStyleInstruction(dialogueRatio)}\n\n"
+                + $"[이번에 쓸 비트]\n{beats[i]}\n\n[요청] 이 비트를 이어지는 소설 본문으로 길게 작성하세요.";
+
+            var prose = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });
+            if (!string.IsNullOrWhiteSpace(prose))
+            {
+                var korean = await EnsureKoreanAsync(prose);
+                builder.Append(korean.Trim()).Append("\n\n");
+                previousProse = korean;
+            }
+        }
+
+        return builder.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// Scene을 세부 사건(비트) 목록으로 분해합니다.
+    /// </summary>
+    private async Task<List<string>> GenerateSceneBeatsAsync(StoryProject project, ChapterNode chapter, SceneNode scene)
+    {
+        const string system = "당신은 소설 구조 설계자입니다. 문자열 JSON 배열만 출력하고 다른 설명은 절대 쓰지 마세요. 모든 값은 반드시 한국어로 작성하세요.";
+        var user = BuildBible(project)
+            + $"\n\n[현재 장]\n{chapter.Title} — {chapter.Summary}\n"
+            + $"[현재 Scene]\n제목: {scene.Title}\n요약: {scene.Summary}\n목표: {scene.Goal}\n갈등: {scene.Conflict}\n결과: {scene.Result}\n\n"
+            + "[요청] 이 Scene을 시간 순서대로 4~6개의 세부 사건(비트)으로 나누세요. 각 비트를 한 문장으로 설명한 "
+            + "JSON 문자열 배열(예: [\"...\", \"...\"])로만 출력하세요.";
+
+        var reply = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });
+        var beats = new List<string>();
+        foreach (var element in EnumerateJsonArray(reply))
+        {
+            if (element.ValueKind == JsonValueKind.String)
+            {
+                var text = element.GetString();
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    beats.Add(text);
+                }
+            }
+        }
+
+        return beats;
+    }
+
+    /// <summary>
+    /// 작품 전체의 스토리 일관성을 검사하고 경고 목록을 반환합니다.
+    /// </summary>
+    public async Task<string?> CheckConsistencyAsync(StoryProject project)
+    {
+        const string system =
+            "당신은 소설 편집자입니다. 스토리의 일관성 오류(죽은 인물 재등장, 정보 노출 시점 모순, 이동 경로 누락, 설정 위반 등)를 찾아 "
+            + "한국어로 간결한 목록(각 줄 '⚠ ...')으로 알려주세요. 문제가 없으면 '발견된 문제가 없습니다.'라고만 답하세요.";
+
+        var builder = new StringBuilder();
+        builder.AppendLine(BuildBible(project));
+        builder.AppendLine($"\n[전체 시놉시스]\n{project.Synopsis}\n");
+        builder.AppendLine("[장 구성]");
+        var chapterIndex = 1;
+        foreach (var chapter in project.Chapters)
+        {
+            builder.AppendLine($"{chapterIndex}장 {chapter.Title}: {chapter.Summary} (반전: {chapter.Reveal})");
+            var sceneIndex = 1;
+            foreach (var scene in chapter.Scenes)
+            {
+                builder.AppendLine($"  - Scene {chapterIndex}-{sceneIndex}: {scene.Summary}");
+                sceneIndex++;
+            }
+
+            chapterIndex++;
+        }
+
+        builder.Append("\n[요청] 위 구성의 일관성 문제를 찾아주세요.");
+
+        return await EnsureKoreanAsync(await _chat.AskAsync(new[]
+        {
+            new ChatTurn("system", system),
+            new ChatTurn("user", builder.ToString())
+        }));
+    }
+
+    // ────────────────────────── 원고 역분석 (원고 → 설계) ──────────────────────────
+
+    /// <summary>
+    /// 원고를 분석해 작품 설정과 등장인물을 추출합니다.
+    /// </summary>
+    public async Task<ExtractedSettings?> ExtractSettingsAsync(string manuscript)
+    {
+        const string system = "당신은 소설 분석가입니다. 요청한 JSON 객체만 출력하고 다른 설명은 절대 쓰지 마세요. 모든 JSON 문자열 값(장르·시대·세계관·인물 정보 등)은 반드시 한국어로 작성하고 영어를 쓰지 마세요.";
+        var user = "[소설 원고]\n" + Shorten(manuscript, 12000)
+            + "\n\n[요청] 위 원고를 분석해 작품 설정을 JSON 객체로 출력하세요. 키: "
+            + "\"genre\"(장르), \"era\"(시대), \"world\"(세계관), \"coreEvent\"(핵심 사건), \"ending\"(결말 방향), "
+            + "\"characters\"(배열, 각 원소 \"name\",\"personality\",\"goal\",\"secret\",\"relationships\"). JSON 객체만 출력하세요.";
+
+        var reply = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });
+        var root = ParseJsonObject(reply);
+        if (root is null)
+        {
+            return null;
+        }
+
+        var characters = new List<StoryCharacter>();
+        if (root.Value.TryGetProperty("characters", out var chars) && chars.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var c in chars.EnumerateArray())
+            {
+                characters.Add(new StoryCharacter
+                {
+                    Name = await EnsureKoreanAsync(GetString(c, "name")),
+                    Personality = await EnsureKoreanAsync(GetString(c, "personality")),
+                    Goal = await EnsureKoreanAsync(GetString(c, "goal")),
+                    Secret = await EnsureKoreanAsync(GetString(c, "secret")),
+                    Relationships = await EnsureKoreanAsync(GetString(c, "relationships"))
+                });
+            }
+        }
+
+        return new ExtractedSettings(
+            await EnsureKoreanAsync(GetString(root.Value, "genre")),
+            await EnsureKoreanAsync(GetString(root.Value, "era")),
+            await EnsureKoreanAsync(GetString(root.Value, "world")),
+            await EnsureKoreanAsync(GetString(root.Value, "coreEvent")),
+            await EnsureKoreanAsync(GetString(root.Value, "ending")),
+            characters);
+    }
+
+    /// <summary>
+    /// 원고에서 전체 시놉시스를 추출합니다.
+    /// </summary>
+    public async Task<string?> ExtractSynopsisAsync(string manuscript)
+    {
+        const string system =
+            "당신은 소설 분석가입니다. 주어진 원고의 전체 시놉시스를 8~15문장으로 요약하세요. "
+            + "큰 사건 흐름만 담고, 원문을 그대로 옮기지 말고 요약하세요. 한국어로 작성합니다.";
+        var user = "[소설 원고]\n" + Shorten(manuscript, 12000) + "\n\n[요청] 이 원고의 전체 시놉시스를 작성하세요.";
+        return await EnsureKoreanAsync(await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) }));
+    }
+
+    /// <summary>
+    /// 원고를 분석해 장 구성을 추출합니다.
+    /// </summary>
+    public async Task<List<ChapterNode>> ExtractChaptersAsync(string manuscript)
+    {
+        const string system = "당신은 소설 구조 분석가입니다. 요청한 JSON 배열만 출력하고 다른 설명은 절대 쓰지 마세요. 모든 JSON 문자열 값은 반드시 한국어로 작성하고 영어를 쓰지 마세요.";
+        var user = "[소설 원고]\n" + Shorten(manuscript, 14000)
+            + "\n\n[요청] 위 원고를 이야기 흐름에 따라 장으로 나누고, 각 장을 JSON 배열의 원소로 출력하세요. 각 원소 키: "
+            + "\"title\",\"summary\",\"purpose\",\"conflict\",\"reveal\",\"ending\". JSON 배열만 출력하세요.";
+
+        var reply = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });
+        var chapters = new List<ChapterNode>();
+        foreach (var element in EnumerateJsonArray(reply))
+        {
+            chapters.Add(new ChapterNode
+            {
+                Title = await EnsureKoreanAsync(GetString(element, "title")),
+                Summary = await EnsureKoreanAsync(GetString(element, "summary")),
+                Purpose = await EnsureKoreanAsync(GetString(element, "purpose")),
+                Conflict = await EnsureKoreanAsync(GetString(element, "conflict")),
+                Reveal = await EnsureKoreanAsync(GetString(element, "reveal")),
+                Ending = await EnsureKoreanAsync(GetString(element, "ending"))
+            });
+        }
+
+        return chapters;
+    }
+
+    // ────────────────────────── 한글 강제 후처리 ──────────────────────────
+
+    // 3글자 이상 연속된 영단어를 감지합니다. (약어/짧은 기호는 무시)
+    private static readonly Regex EnglishWordRegex = new("[A-Za-z]{3,}", RegexOptions.Compiled);
+
+    /// <summary>
+    /// 텍스트에 영어가 섞여 있으면 한국어로 재번역합니다. (없으면 그대로 반환 · AI 호출 없음)
+    /// </summary>
+    private async Task<string> EnsureKoreanAsync(string? text)
+    {
+        var value = text ?? string.Empty;
+        if (!EnglishWordRegex.IsMatch(value))
+        {
+            return value;
+        }
+
+        const string system =
+            "다음 텍스트를 자연스러운 한국어로 옮기세요. 이미 한국어인 부분은 그대로 두고 영어로 된 부분만 한국어로 번역하세요. "
+            + "인명·지명 같은 고유명사는 한글 표기로 바꾸되 의미는 유지하세요. 번역 결과만 출력하고 다른 설명은 쓰지 마세요.";
+        var translated = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", value) });
+        return string.IsNullOrWhiteSpace(translated) ? value : translated.Trim();
+    }
+
+    private static JsonElement? ParseJsonObject(string? reply)
+    {
+        if (string.IsNullOrWhiteSpace(reply))
+        {
+            return null;
+        }
+
+        var start = reply.IndexOf('{');
+        var end = reply.LastIndexOf('}');
+        if (start < 0 || end <= start)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(reply[start..(end + 1)]);
+            return document.RootElement.Clone();
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string BuildBible(StoryProject p)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("[작품 설정]");
+        if (!string.IsNullOrWhiteSpace(p.Title)) sb.AppendLine($"제목: {p.Title}");
+        if (!string.IsNullOrWhiteSpace(p.Genre)) sb.AppendLine($"장르: {p.Genre}");
+        if (!string.IsNullOrWhiteSpace(p.Era)) sb.AppendLine($"시대: {p.Era}");
+        if (!string.IsNullOrWhiteSpace(p.World)) sb.AppendLine($"세계관: {p.World}");
+        if (!string.IsNullOrWhiteSpace(p.CoreEvent)) sb.AppendLine($"핵심 사건: {p.CoreEvent}");
+        if (!string.IsNullOrWhiteSpace(p.Ending)) sb.AppendLine($"결말: {p.Ending}");
+        if (!string.IsNullOrWhiteSpace(p.Forbidden)) sb.AppendLine($"금지사항: {p.Forbidden}");
+
+        if (p.Characters.Count > 0)
+        {
+            sb.AppendLine("등장인물:");
+            foreach (var c in p.Characters)
+            {
+                sb.AppendLine($"  - {c.Name} / 성격: {c.Personality} / 목표: {c.Goal} / 비밀: {c.Secret} / 관계: {c.Relationships}");
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    private static string Shorten(string? text, int max)
+    {
+        text ??= string.Empty;
+        return text.Length <= max ? text : text[..max] + "…";
+    }
+
+    /// <summary>
+    /// 긴 원고를 청크별로 요약해 압축본을 만듭니다. (장편 대응 · 맵 단계)
+    /// 짧은 원고는 그대로 반환합니다.
+    /// </summary>
+    /// <param name="manuscript">원본 원고입니다.</param>
+    /// <param name="progress">진행 상황 보고(부분 요약 n/m)입니다.</param>
+    public async Task<string> CondenseAsync(string? manuscript, IProgress<string>? progress = null)
+    {
+        var text = manuscript ?? string.Empty;
+        const int threshold = 12000;
+        if (text.Length <= threshold)
+        {
+            return text;
+        }
+
+        var chunks = SplitIntoChunks(text, 9000);
+        var summaries = new List<string>();
+
+        for (var i = 0; i < chunks.Count; i++)
+        {
+            progress?.Report($"긴 원고 부분 요약 {i + 1}/{chunks.Count}...");
+
+            const string system =
+                "당신은 소설 분석가입니다. 주어진 원고 조각을 사건 중심으로 6~10문장으로 요약하세요. "
+                + "등장인물 이름, 주요 사건, 장소, 시간 흐름을 반드시 유지하세요. 한국어로 작성합니다.";
+            var user = $"[원고 {i + 1}부]\n{chunks[i]}\n\n[요청] 이 부분을 요약하세요.";
+
+            var summary = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });
+            if (!string.IsNullOrWhiteSpace(summary))
+            {
+                summaries.Add($"[{i + 1}부]\n{summary}");
+            }
+        }
+
+        return summaries.Count > 0 ? string.Join("\n\n", summaries) : Shorten(text, threshold);
+    }
+
+    private static List<string> SplitIntoChunks(string text, int maxLength)
+    {
+        var chunks = new List<string>();
+        var paragraphs = text.Replace("\r\n", "\n").Split("\n\n");
+        var builder = new StringBuilder();
+
+        foreach (var paragraph in paragraphs)
+        {
+            if (builder.Length > 0 && builder.Length + paragraph.Length > maxLength)
+            {
+                chunks.Add(builder.ToString());
+                builder.Clear();
+            }
+
+            builder.Append(paragraph).Append("\n\n");
+
+            // 단일 문단이 지나치게 길면 강제로 분할합니다.
+            while (builder.Length > maxLength * 3 / 2)
+            {
+                chunks.Add(builder.ToString(0, maxLength));
+                builder.Remove(0, maxLength);
+            }
+        }
+
+        if (builder.Length > 0)
+        {
+            chunks.Add(builder.ToString());
+        }
+
+        return chunks;
+    }
+
+    private static IEnumerable<JsonElement> EnumerateJsonArray(string? reply)
+    {
+        if (string.IsNullOrWhiteSpace(reply))
+        {
+            yield break;
+        }
+
+        var start = reply.IndexOf('[');
+        var end = reply.LastIndexOf(']');
+        if (start < 0 || end <= start)
+        {
+            yield break;
+        }
+
+        JsonDocument? document = null;
+        try
+        {
+            document = JsonDocument.Parse(reply[start..(end + 1)]);
+        }
+        catch (JsonException)
+        {
+            yield break;
+        }
+
+        using (document)
+        {
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                yield break;
+            }
+
+            foreach (var element in document.RootElement.EnumerateArray())
+            {
+                yield return element.Clone();
+            }
+        }
+    }
+
+    private static string GetString(JsonElement element, string name)
+    {
+        return element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString() ?? string.Empty
+            : string.Empty;
+    }
+}

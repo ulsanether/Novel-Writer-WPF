@@ -10,9 +10,19 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- 한국어 Hunspell 사전 (spellcheck-ko/hunspell-dict-ko, GPL-3.0) -->
+    <Content Include="Dictionaries\ko.aff" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Dictionaries\ko.dic" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Dictionaries\LICENSE-hunspell-dict-ko.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.3.0" />
+    <PackageReference Include="MaterialDesignColors" Version="5.2.1" />
+    <PackageReference Include="MaterialDesignThemes" Version="5.2.1" />
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />
+    <PackageReference Include="WeCantSpell.Hunspell" Version="7.0.1" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,212 @@
+<Window
+    x:Class="NovelWriter.Wpf.StoryPlannerWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+    xmlns:models="clr-namespace:NovelWriter.Wpf.Models"
+    Title="스토리 플래너"
+    Width="1180"
+    Height="800"
+    WindowStartupLocation="CenterOwner"
+    Background="{DynamicResource MaterialDesignPaper}"
+    TextElement.Foreground="{DynamicResource MaterialDesignBody}">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="330" />
+            <ColumnDefinition Width="270" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!--  좌: 작품 설정 + 시놉시스  -->
+        <ScrollViewer Grid.Row="0" Grid.Column="0" Margin="0,0,10,0" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Margin="0,0,0,8" FontSize="16" FontWeight="Bold" Text="작품 설정 (Story Bible)" />
+                <TextBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="제목" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding Project.Title}" />
+                <ComboBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="장르 (선택 또는 입력)" IsEditable="True" ItemsSource="{Binding GenreSamples}" Style="{StaticResource MaterialDesignOutlinedComboBox}" Text="{Binding Project.Genre, UpdateSourceTrigger=LostFocus}" />
+                <ComboBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="시대 (선택 또는 입력)" IsEditable="True" ItemsSource="{Binding EraSamples}" Style="{StaticResource MaterialDesignOutlinedComboBox}" Text="{Binding Project.Era, UpdateSourceTrigger=LostFocus}" />
+                <ComboBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="세계관 (선택 또는 입력)" IsEditable="True" ItemsSource="{Binding WorldSamples}" Style="{StaticResource MaterialDesignOutlinedComboBox}" Text="{Binding Project.World, UpdateSourceTrigger=LostFocus}" />
+                <TextBox Margin="0,0,0,8" MinHeight="52" materialDesign:HintAssist.Hint="핵심 사건" AcceptsReturn="True" TextWrapping="Wrap" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding Project.CoreEvent}" />
+                <ComboBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="결말 (선택 또는 입력)" IsEditable="True" ItemsSource="{Binding EndingSamples}" Style="{StaticResource MaterialDesignOutlinedComboBox}" Text="{Binding Project.Ending, UpdateSourceTrigger=LostFocus}" />
+                <TextBox Margin="0,0,0,8" MinHeight="52" materialDesign:HintAssist.Hint="금지사항 (예: 준호는 12장 이전에 비밀을 알면 안 됨)" AcceptsReturn="True" TextWrapping="Wrap" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding Project.Forbidden}" />
+                <TextBox Margin="0,0,0,12" materialDesign:HintAssist.Hint="장 수" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding Project.ChapterCount}" />
+
+                <DockPanel Margin="0,0,0,6">
+                    <TextBlock FontWeight="SemiBold" Text="등장인물" />
+                    <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Command="{Binding AddCharacterCommand}" Style="{StaticResource MaterialDesignToolButton}" ToolTip="인물 추가">
+                        <materialDesign:PackIcon Kind="Plus" />
+                    </Button>
+                </DockPanel>
+                <ItemsControl Margin="0,0,0,12" ItemsSource="{Binding Project.Characters}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type models:StoryCharacter}">
+                            <Border Margin="0,0,0,8" Padding="8" Background="#22808080" CornerRadius="6">
+                                <StackPanel>
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Command="{Binding DataContext.RemoveCharacterCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Style="{StaticResource MaterialDesignToolButton}" ToolTip="삭제">
+                                            <materialDesign:PackIcon Kind="Delete" />
+                                        </Button>
+                                        <TextBox materialDesign:HintAssist.Hint="이름" Text="{Binding Name}" />
+                                    </DockPanel>
+                                    <TextBox Margin="0,4,0,0" materialDesign:HintAssist.Hint="성격" Text="{Binding Personality}" />
+                                    <TextBox Margin="0,4,0,0" materialDesign:HintAssist.Hint="목표" Text="{Binding Goal}" />
+                                    <TextBox Margin="0,4,0,0" materialDesign:HintAssist.Hint="비밀" Text="{Binding Secret}" />
+                                    <TextBox Margin="0,4,0,0" materialDesign:HintAssist.Hint="관계" Text="{Binding Relationships}" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Button Margin="0,0,0,10" Command="{Binding GenerateSynopsisCommand}" Content="전체 시놉시스 생성" Style="{StaticResource MaterialDesignRaisedButton}" />
+                <TextBlock Margin="0,0,0,4" FontWeight="SemiBold" Text="전체 시놉시스" />
+                <TextBox MinHeight="140" MaxHeight="260" materialDesign:HintAssist.Hint="시놉시스" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding Project.Synopsis}" />
+                <Button Margin="0,10,0,0" Command="{Binding GenerateChaptersCommand}" Content="장 구성 생성" Style="{StaticResource MaterialDesignRaisedButton}" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <!--  중: 트리 + 편집 버튼  -->
+        <DockPanel Grid.Row="0" Grid.Column="1" Margin="0,0,10,0">
+            <TextBlock DockPanel.Dock="Top" Margin="0,0,0,6" FontWeight="Bold" Text="구조" />
+            <WrapPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                <Button Margin="0,0,6,6" Command="{Binding AddChapterCommand}" Content="장 추가" Style="{StaticResource MaterialDesignOutlinedButton}" />
+                <Button Margin="0,0,6,6" Command="{Binding RemoveChapterCommand}" Content="장 삭제" Style="{StaticResource MaterialDesignOutlinedButton}" />
+                <Button Margin="0,0,6,6" Command="{Binding AddSceneCommand}" Content="Scene 추가" Style="{StaticResource MaterialDesignOutlinedButton}" />
+                <Button Margin="0,0,0,6" Command="{Binding RemoveSceneCommand}" Content="Scene 삭제" Style="{StaticResource MaterialDesignOutlinedButton}" />
+            </WrapPanel>
+            <TreeView
+                x:Name="StructureTree"
+                SelectedItemChanged="OnTreeSelectedItemChanged">
+                <TreeView.Resources>
+                    <HierarchicalDataTemplate DataType="{x:Type models:ChapterNode}" ItemsSource="{Binding Scenes}">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Margin="0,0,4,0" VerticalAlignment="Center" Kind="BookOutline" />
+                            <TextBlock Text="{Binding Title}" />
+                        </StackPanel>
+                    </HierarchicalDataTemplate>
+                    <DataTemplate DataType="{x:Type models:SceneNode}">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Margin="0,0,4,0" VerticalAlignment="Center" Kind="MovieOutline" />
+                            <TextBlock Text="{Binding Title}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </TreeView.Resources>
+                <TreeView.ItemsSource>
+                    <Binding Path="Project.Chapters" />
+                </TreeView.ItemsSource>
+            </TreeView>
+        </DockPanel>
+
+        <!--  우: 상세 편집  -->
+        <ScrollViewer Grid.Row="0" Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <Grid>
+                <!--  선택 안 함 안내  -->
+                <TextBlock
+                    Margin="20"
+                    VerticalAlignment="Top"
+                    Opacity="0.6"
+                    TextWrapping="Wrap"
+                    Text="왼쪽 트리에서 장 또는 Scene을 선택하면 여기서 편집할 수 있습니다.">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasSelectedChapter}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <!--  장 편집  -->
+                <StackPanel Visibility="{Binding HasSelectedChapter, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Margin="0,0,0,8" FontSize="16" FontWeight="Bold" Text="장 편집" />
+                    <TextBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="제목" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding SelectedChapter.Title}" />
+                    <TextBox Margin="0,0,0,8" MinHeight="60" materialDesign:HintAssist.Hint="요약" AcceptsReturn="True" TextWrapping="Wrap" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding SelectedChapter.Summary}" />
+                    <TextBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="목적" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding SelectedChapter.Purpose}" />
+                    <TextBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="갈등" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding SelectedChapter.Conflict}" />
+                    <TextBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="반전" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding SelectedChapter.Reveal}" />
+                    <TextBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="종료 상태" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding SelectedChapter.Ending}" />
+                    <Button Margin="0,4,0,16" HorizontalAlignment="Left" Command="{Binding GenerateScenesCommand}" Content="이 장을 Scene으로 분할 (AI)" Style="{StaticResource MaterialDesignRaisedButton}" />
+
+                    <!--  Scene 편집  -->
+                    <StackPanel Visibility="{Binding HasSelectedScene, Converter={StaticResource BoolToVis}}">
+                        <Separator Margin="0,0,0,12" />
+                        <TextBlock Margin="0,0,0,8" FontSize="16" FontWeight="Bold" Text="Scene 편집" />
+                        <TextBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="제목" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding SelectedScene.Title}" />
+                        <TextBox Margin="0,0,0,8" MinHeight="52" materialDesign:HintAssist.Hint="요약" AcceptsReturn="True" TextWrapping="Wrap" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding SelectedScene.Summary}" />
+                        <TextBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="목표" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding SelectedScene.Goal}" />
+                        <TextBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="등장인물" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding SelectedScene.Characters}" />
+                        <TextBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="장소" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding SelectedScene.Location}" />
+                        <TextBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="갈등" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding SelectedScene.Conflict}" />
+                        <TextBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="결과" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding SelectedScene.Result}" />
+                        <TextBox Margin="0,0,0,8" materialDesign:HintAssist.Hint="다음 Scene 연결" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding SelectedScene.NextLink}" />
+                        <TextBlock Margin="0,6,0,2" Text="{Binding DialogueRatio, StringFormat=묘사 ◀▶ 대사   (대사 {0}% · 묘사 나머지)}" />
+                        <Slider
+                            Margin="0,0,0,8"
+                            IsSnapToTickEnabled="True"
+                            Maximum="100"
+                            Minimum="0"
+                            TickFrequency="5"
+                            Value="{Binding DialogueRatio}" />
+                        <WrapPanel Margin="0,4,0,8">
+                            <Button Margin="0,0,8,8" Command="{Binding GenerateSceneContentCommand}" Content="본문 작성 (AI)" Style="{StaticResource MaterialDesignOutlinedButton}" />
+                            <Button Margin="0,0,8,8" Command="{Binding GenerateSceneContentDetailedCommand}" Content="상세 작성 (길게)" Style="{StaticResource MaterialDesignRaisedButton}" />
+                            <Button Margin="0,0,0,8" Command="{Binding InsertSceneToEditorCommand}" Content="에디터에 삽입" Style="{StaticResource MaterialDesignOutlinedButton}" />
+                        </WrapPanel>
+                        <TextBox MinHeight="200" materialDesign:HintAssist.Hint="본문" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding SelectedScene.Content}" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+
+        <!--  하단: 진행/일관성/저장  -->
+        <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,10,0,0" Padding="10" Background="#22808080" CornerRadius="6">
+            <StackPanel>
+                <!-- 원고 역분석 (원고 → 설계): 별도 구역 -->
+                <Border Margin="0,0,0,8" Padding="8" Background="#332979FF" CornerRadius="6">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
+                            <TextBlock FontWeight="Bold" Text="📖 원고에서 역분석 (원고 → 설계)" />
+                            <TextBlock FontSize="11" Opacity="0.75" Text="에디터의 소설을 AI로 분석해 설계를 자동 생성합니다." />
+                        </StackPanel>
+                        <WrapPanel HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Button Margin="0,0,6,0" Command="{Binding AnalyzeSettingsCommand}" Content="설정·인물" Style="{StaticResource MaterialDesignOutlinedButton}" />
+                            <Button Margin="0,0,6,0" Command="{Binding AnalyzeSynopsisCommand}" Content="시놉시스" Style="{StaticResource MaterialDesignOutlinedButton}" />
+                            <Button Margin="0,0,6,0" Command="{Binding AnalyzeChaptersCommand}" Content="장 구조" Style="{StaticResource MaterialDesignOutlinedButton}" />
+                            <Button Command="{Binding AnalyzeAllCommand}" Content="전체 분석" Style="{StaticResource MaterialDesignRaisedButton}" />
+                        </WrapPanel>
+                    </DockPanel>
+                </Border>
+
+                <ProgressBar Height="4" Margin="0,0,0,8" IsIndeterminate="True" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Margin="0,0,8,0" Command="{Binding OpenFromFileCommand}" Content="열기" Style="{StaticResource MaterialDesignOutlinedButton}" />
+                        <Button Margin="0,0,8,0" Command="{Binding SaveToFileCommand}" Content="파일로 저장" Style="{StaticResource MaterialDesignOutlinedButton}" />
+                        <Button Margin="0,0,8,0" Command="{Binding CheckConsistencyCommand}" Content="스토리 일관성 검사" Style="{StaticResource MaterialDesignOutlinedButton}" />
+                        <Button Command="{Binding SaveCommand}" Content="저장" Style="{StaticResource MaterialDesignRaisedButton}" />
+                    </StackPanel>
+                    <TextBlock VerticalAlignment="Center" Opacity="0.85" Text="{Binding StatusMessage}" />
+                </DockPanel>
+                <TextBox
+                    MaxHeight="120"
+                    Margin="0,8,0,0"
+                    materialDesign:HintAssist.Hint="일관성 검사 결과"
+                    AcceptsReturn="True"
+                    IsReadOnly="True"
+                    TextWrapping="Wrap"
+                    VerticalScrollBarVisibility="Auto"
+                    Text="{Binding ConsistencyResult}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

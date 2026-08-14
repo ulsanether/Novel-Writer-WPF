@@ -36,7 +36,52 @@ public sealed class AppSettings
     public int DailyWordGoal { get; set; } = 1000;
 
     /// <summary>
-    /// 집중 타이머 목표 시간을 분 단위로 가져오거나 설정합니다.
+    /// AI 보정에 사용할 로컬 모델 이름을 가져오거나 설정합니다. (예: exaone3.5:2.4b, exaone3.5:7.8b)
     /// </summary>
-    public int FocusMinutes { get; set; } = 25;
+    public string AiModel { get; set; } = "exaone3.5:7.8b";
+
+    /// <summary>
+    /// OpenAI 호환 로컬 서버 주소를 가져오거나 설정합니다. (Ollama 기본값)
+    /// </summary>
+    public string AiBaseUrl { get; set; } = "http://localhost:11434/v1";
+
+    /// <summary>
+    /// 참고자료(.md) 폴더 경로를 가져오거나 설정합니다.
+    /// </summary>
+    public string ReferenceFolder { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 자동 저장 사용 여부를 가져오거나 설정합니다.
+    /// </summary>
+    public bool AutoSaveEnabled { get; set; } = true;
+
+    /// <summary>
+    /// 상단 메뉴 폰트 크기를 가져오거나 설정합니다.
+    /// </summary>
+    public double MenuFontSize { get; set; } = 13;
+
+    /// <summary>
+    /// 참고자료 폰트 크기를 가져오거나 설정합니다.
+    /// </summary>
+    public double ReferenceFontSize { get; set; } = 14;
+
+    /// <summary>
+    /// 참고자료 글자 색(ARGB hex)을 가져오거나 설정합니다.
+    /// </summary>
+    public string ReferenceForegroundHex { get; set; } = "#FFDDDDDD";
+
+    /// <summary>
+    /// 상단 툴바 아이콘 크기를 가져오거나 설정합니다.
+    /// </summary>
+    public double ToolbarIconSize { get; set; } = 28;
+
+    /// <summary>
+    /// AI 어시스턴트(채팅) 폰트 크기를 가져오거나 설정합니다.
+    /// </summary>
+    public double ChatFontSize { get; set; } = 14;
+
+    /// <summary>
+    /// AI 어시스턴트(채팅) 배경색(ARGB hex)을 가져오거나 설정합니다.
+    /// </summary>
+    public string ChatBackgroundHex { get; set; } = "#FF1E1E1E";
 }

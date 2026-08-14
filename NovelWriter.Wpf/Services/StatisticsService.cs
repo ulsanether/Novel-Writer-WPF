@@ -19,7 +19,7 @@ public sealed partial class StatisticsService
     {
         var text = content ?? string.Empty;
         var words = SplitWordsRegex().Matches(text).Count;
-        var paragraphs = text.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).Length;
+        var paragraphs = text.Replace("\r\n", "\n").Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
         var sentences = SentenceRegex().Matches(text).Count;
         var characters = text.Length;
         var pages = Math.Max(1, (int)Math.Ceiling(characters / (double)CharactersPerPage));
