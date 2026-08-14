@@ -221,6 +221,33 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+
+                <!-- 배경 이미지 -->
+                <TextBlock Margin="0,12,0,4" Text="배경 이미지" />
+                <DockPanel Margin="0,0,0,6">
+                    <Button
+                        Margin="6,0,0,0"
+                        Command="{Binding ClearBackgroundImageCommand}"
+                        Content="지우기"
+                        DockPanel.Dock="Right"
+                        Style="{StaticResource MaterialDesignOutlinedButton}" />
+                    <Button
+                        Margin="6,0,0,0"
+                        Command="{Binding OpenBackgroundImageCommand}"
+                        Content="선택"
+                        DockPanel.Dock="Right"
+                        Style="{StaticResource MaterialDesignRaisedButton}" />
+                    <TextBox
+                        materialDesign:HintAssist.Hint="이미지 경로 (비우면 색 배경)"
+                        IsReadOnly="True"
+                        Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                        Text="{Binding BackgroundImagePath}" />
+                </DockPanel>
+                <DockPanel Margin="0,0,0,4">
+                    <TextBlock DockPanel.Dock="Left" Text="이미지 투명도" />
+                    <TextBlock HorizontalAlignment="Right" Text="{Binding BackgroundOpacity, StringFormat=0.00}" />
+                </DockPanel>
+                <Slider Margin="0,0,0,8" Maximum="1" Minimum="0" TickFrequency="0.05" Value="{Binding BackgroundOpacity}" />
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

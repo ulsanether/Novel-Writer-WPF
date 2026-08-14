@@ -4,13 +4,18 @@
 
 
 <p align="center">
-  <img src="Img/01.png" width="30%" style="margin: 5px;">
-  <img src="Img/02.png" width="30%" style="margin: 5px;"><br>
-  <img src="Img/03.png" width="30%" style="margin: 5px;">
-  <img src="Img/04.png" width="30%" style="margin: 5px;"><br>
-  <img src="Img/05.png" width="30%" style="margin: 5px;">
-  <img src="Img/06.png" width="30%" style="margin: 5px;"><br>
-  <img src="Img/07.png" width="30%" style="margin: 5px;">
+  <img src="Img/01.png" width="50%" style="margin: 5px;">
+  <img src="Img/02.png" width="50%" style="margin: 5px;"><br>
+  <img src="Img/03.png" width="50%" style="margin: 5px;">
+</p>
+<p align="center"> 
+  <img src="Img/04.png" width="50%" style="margin: 5px;"><br>
+  <img src="Img/05.png" width="50%" style="margin: 5px;">
+ </p>
+ 
+  <p align="center"> 
+  <img src="Img/06.png" width="50%" style="margin: 5px;"><br>
+  <img src="Img/07.png" width="50%" style="margin: 5px;">
 </p>
 
 
