@@ -106,6 +106,7 @@ OpenAI 호환 Chat Completions API를 호출합니다. 서버 주소·모델은 
 - **설정 창**(상단 "설정" 메뉴 → `MainWindow.OnOpenSettings` → `SettingsWindow`): DataContext로 `MainViewModel`을 공유하며 세로 스크롤. 항목 = AI 모델(ComboBox), 자동 저장 on/off(`AutoSaveEnabled`→`UpdateAutoSaveTimer`)·주기(`AutoSaveSeconds`), 메뉴 폰트 크기(`MenuFontSize`→상단 `Menu.FontSize`), **툴바 아이콘 크기**(`ToolbarIconSize`→툴바 `StackPanel.Resources`의 `PackIcon` 암시적 스타일 Width/Height), 참고자료 폰트 크기(`ReferenceFontSize`)·색, **AI 어시스턴트 폰트 크기**(`ChatFontSize`→채팅 `DockPanel.TextElement.FontSize`)·**배경색**(`ChatBackgroundHex`→`ChatBackground`). "저장"이 `SaveSettingsCommand`(→`PersistSettingsAsync` + `EnsureAiReadyAsync` 재확인) 호출.
 - **색 팔레트**: 색 설정은 hex 입력 + `PaletteColors` 스와치(ItemsControl)에서 선택. 스와치 클릭 → `SetReferenceColorCommand`/`SetChatBackgroundCommand`/`SetCustomBackgroundCommand`/`SetCustomForegroundCommand`(CommandParameter=hex). 스와치 배경은 `StringToBrushConverter`로 hex→Brush.
 - **테마 커스텀**: 설정 창 하단에서 커스텀 배경/글자색을 hex+팔레트로 지정. `SetCustomBackground`/`SetCustomForeground`가 `Theme="Custom"` + `ApplyTheme()`로 즉시 반영(`CustomBackgroundHex`/`CustomForegroundHex`).
+- **에디터 폰트 종류**(`EditorFontFamilyName`→`EditorFontFamily`, RichTextBox `FontFamily` 바인딩)와 **배경 이미지**(`BackgroundImagePath`/`BackgroundOpacity`)도 커스텀 가능. 배경 이미지가 있으면 에디터 뒤 `Image` 레이어를 깔고 RichTextBox 배경을 `EditorEffectiveBackground`(투명)로 바꿔 이미지가 비칩니다. 이미지 선택은 `BackgroundImageResolver`(OpenFileDialog) 콜백.
 - 참고자료 폰트/색 상속을 위해 `MarkdownFlowDocumentConverter`는 FlowDocument에 FontSize/Foreground를 지정하지 않습니다(뷰어 바인딩 값 상속).
 
 ### 로컬 모델 온보딩 (`OllamaService` + AI 준비 오버레이)

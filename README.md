@@ -3,6 +3,11 @@
 # Novel Writer
 
 
+## 프로젝트 개요
+AI 글 작성해주는 데스크톱 애플리케이션
+
+
+
 <p align="center">
   <img src="Img/01.png" width="50%" style="margin: 5px;">
   <img src="Img/02.png" width="50%" style="margin: 5px;"><br>
@@ -19,18 +24,6 @@
 </p>
 
 
-
-
-## Phase 1: 초기 프로젝트 설정
-
-
-```markdown
-# Novel Writer - WPF 데스크톱 앱 초기 프로젝트 설정
-
-## 프로젝트 개요
-소설 작가를 위한 집중형 워드프로세서 데스크톱 애플리케이션을 만들어야 합니다.
-FocusWriter (https://codeberg.org/gottcode/focuswriter) 에서 영감을 얻었으며, 
-Windows WPF + MVVM 아키텍처로 구현해야 합니다.
 
 ## 기술 요구사항
 - **프레임워크**: WPF (Windows Presentation Foundation), .NET 6 이상
@@ -63,10 +56,6 @@ Windows WPF + MVVM 아키텍처로 구현해야 합니다.
 - 한글 주석 사용
 - 인덴트: 4칸 (탭 사용 금지)
 
-## 출력 형식
-각 파일을 별도의 코드 블록으로 제공해주세요.
-파일명과 전체 코드를 포함해주세요.
-
 
 ## 코드 스타일 요구사항
 - MVVM Toolkit의 ObservableObject, RelayCommand 사용
@@ -75,9 +64,5 @@ Windows WPF + MVVM 아키텍처로 구현해야 합니다.
 - XML 문서 주석 추가 (요약, 파라미터, 반환값)
 - 한글 주석 사용
 - 인덴트: 4칸 (탭 사용 금지)
-
-## 출력 형식
-각 파일을 별도의 코드 블록으로 제공해주세요.
-파일명과 전체 코드를 포함해주세요.
 
 
