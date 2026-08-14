@@ -1,7 +1,7 @@
 {
-  "version": 3,
+  "version": 4,
   "targets": {
-    "net8.0-windows7.0": {
+    "net8.0-windows": {
       "CommunityToolkit.Mvvm/8.4.0": {
         "type": "package",
         "compile": {
@@ -428,7 +428,7 @@
     }
   },
   "projectFileDependencyGroups": {
-    "net8.0-windows7.0": [
+    "net8.0-windows": [
       "CommunityToolkit.Mvvm >= 8.4.0",
       "DocumentFormat.OpenXml >= 3.3.0",
       "MaterialDesignColors >= 5.2.1",
@@ -446,7 +446,7 @@
     "version": "1.0.0",
     "restore": {
       "projectUniqueName": "D:\\GIT\\WriterProject\\Novel Writer WPF\\NovelWriter.Wpf\\NovelWriter.Wpf.csproj",
-      "projectName": "NovelWriter.Wpf",
+      "projectName": "NovelWriter",
       "projectPath": "D:\\GIT\\WriterProject\\Novel Writer WPF\\NovelWriter.Wpf\\NovelWriter.Wpf.csproj",
       "packagesPath": "C:\\Users\\hakmin\\.nuget\\packages\\",
       "outputPath": "D:\\GIT\\WriterProject\\Novel Writer WPF\\NovelWriter.Wpf\\obj\\",
@@ -472,7 +472,8 @@
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
-        "net8.0-windows7.0": {
+        "net8.0-windows": {
+          "framework": "net8.0-windows7.0",
           "targetAlias": "net8.0-windows",
           "projectReferences": {}
         }
@@ -487,10 +488,11 @@
         "auditLevel": "low",
         "auditMode": "direct"
       },
-      "SdkAnalysisLevel": "9.0.300"
+      "SdkAnalysisLevel": "10.0.300"
     },
     "frameworks": {
-      "net8.0-windows7.0": {
+      "net8.0-windows": {
+        "framework": "net8.0-windows7.0",
         "targetAlias": "net8.0-windows",
         "dependencies": {
           "CommunityToolkit.Mvvm": {
@@ -537,7 +539,7 @@
             "privateAssets": "none"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.314/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.301/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

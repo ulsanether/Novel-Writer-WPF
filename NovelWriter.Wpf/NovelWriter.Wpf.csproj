@@ -7,6 +7,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <!-- 어셈블리(exe) 이름에서 .Wpf 제거. 네임스페이스/프로젝트 구조는 유지 -->
+    <AssemblyName>NovelWriter</AssemblyName>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
