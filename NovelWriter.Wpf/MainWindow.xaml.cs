@@ -367,6 +367,12 @@ public partial class MainWindow : Window
         _viewModel.RefreshReferencesCommand.Execute(null);
     }
 
+    private void OnOpenThemeCustom(object sender, RoutedEventArgs e)
+    {
+        var window = new ThemeCustomWindow(_viewModel) { Owner = this };
+        window.ShowDialog();
+    }
+
     private void OnOpenStoryPlanner(object sender, RoutedEventArgs e)
     {
         var project = _storyProjectService.Load();

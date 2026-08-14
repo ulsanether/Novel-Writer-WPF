@@ -325,6 +325,12 @@
                             <MenuItem Command="{Binding SetDarkThemeCommand}" Header="{Binding ThemeDarkText}" />
                             <MenuItem Command="{Binding SetLightThemeCommand}" Header="{Binding ThemeLightText}" />
                             <MenuItem Command="{Binding SetCustomThemeCommand}" Header="{Binding ThemeCustomText}" />
+                            <Separator />
+                            <MenuItem Click="OnOpenThemeCustom" Header="커스텀 설정...">
+                                <MenuItem.Icon>
+                                    <materialDesign:PackIcon Kind="PaletteOutline" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                         </MenuItem>
                         <MenuItem Header="{Binding LanguageText}">
                             <MenuItem Command="{Binding SetKoreanCommand}" Header="{Binding KoreanText}" />
