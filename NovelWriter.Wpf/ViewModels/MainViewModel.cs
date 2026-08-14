@@ -2,6 +2,7 @@
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -296,6 +297,87 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private double _toolbarIconSize = 28;
+
+    [ObservableProperty]
+    private double _editorFontSize = 30;
+
+    [ObservableProperty]
+    private string _editorFontFamilyName = "맑은 고딕";
+
+    [ObservableProperty]
+    private string _backgroundImagePath = string.Empty;
+
+    [ObservableProperty]
+    private double _backgroundOpacity = 0.3;
+
+    /// <summary>배경 이미지 파일 선택 콜백입니다.</summary>
+    public Func<Task<string?>>? BackgroundImageResolver { get; set; }
+
+    /// <summary>선택 가능한 폰트 종류 목록입니다.</summary>
+    public IReadOnlyList<string> FontFamilies { get; } = new[]
+    {
+        "맑은 고딕", "바탕", "굴림", "돋움", "궁서", "나눔고딕", "나눔명조", "함초롬바탕", "Consolas", "Segoe UI", "Times New Roman"
+    };
+
+    /// <summary>에디터에 적용할 폰트입니다.</summary>
+    public FontFamily EditorFontFamily
+    {
+        get
+        {
+            try
+            {
+                return new FontFamily(string.IsNullOrWhiteSpace(EditorFontFamilyName) ? "맑은 고딕" : EditorFontFamilyName);
+            }
+            catch
+            {
+                return new FontFamily("맑은 고딕");
+            }
+        }
+    }
+
+    /// <summary>배경 이미지가 설정되어 있는지 여부입니다.</summary>
+    public bool HasBackgroundImage => !string.IsNullOrWhiteSpace(BackgroundImagePath) && File.Exists(BackgroundImagePath);
+
+    /// <summary>배경 이미지 소스입니다.</summary>
+    public ImageSource? BackgroundImage
+    {
+        get
+        {
+            if (!HasBackgroundImage)
+            {
+                return null;
+            }
+
+            try
+            {
+                var image = new BitmapImage();
+                image.BeginInit();
+                image.CacheOption = BitmapCacheOption.OnLoad;
+                image.UriSource = new Uri(BackgroundImagePath);
+                image.EndInit();
+                image.Freeze();
+                return image;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
+
+    /// <summary>배경 이미지가 있으면 에디터를 투명(이미지 비침)으로, 없으면 색 배경으로 합니다.</summary>
+    public Brush EditorEffectiveBackground => HasBackgroundImage ? Brushes.Transparent : EditorBackground;
+
+    partial void OnEditorFontFamilyNameChanged(string value) => OnPropertyChanged(nameof(EditorFontFamily));
+
+    partial void OnBackgroundImagePathChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasBackgroundImage));
+        OnPropertyChanged(nameof(BackgroundImage));
+        OnPropertyChanged(nameof(EditorEffectiveBackground));
+    }
+
+    partial void OnEditorBackgroundChanged(Brush value) => OnPropertyChanged(nameof(EditorEffectiveBackground));
 
     [ObservableProperty]
     private double _chatFontSize = 14;
@@ -835,6 +917,62 @@ public partial class MainViewModel : ObservableObject
             ChatBackgroundHex = hex;
         }
     }
+
+    /// <summary>
+    /// 커스텀 테마 배경색을 팔레트에서 선택한 색으로 설정하고 커스텀 테마를 적용합니다.
+    /// </summary>
+    [RelayCommand]
+    private void SetCustomBackground(string? hex)
+    {
+        if (string.IsNullOrWhiteSpace(hex))
+        {
+            return;
+        }
+
+        CustomBackgroundHex = hex;
+        Theme = "Custom";
+        ApplyTheme();
+    }
+
+    /// <summary>
+    /// 커스텀 테마 글자색을 팔레트에서 선택한 색으로 설정하고 커스텀 테마를 적용합니다.
+    /// </summary>
+    [RelayCommand]
+    private void SetCustomForeground(string? hex)
+    {
+        if (string.IsNullOrWhiteSpace(hex))
+        {
+            return;
+        }
+
+        CustomForegroundHex = hex;
+        Theme = "Custom";
+        ApplyTheme();
+    }
+
+    /// <summary>
+    /// 배경 이미지 파일을 선택합니다.
+    /// </summary>
+    [RelayCommand]
+    private async Task OpenBackgroundImageAsync()
+    {
+        if (BackgroundImageResolver is null)
+        {
+            return;
+        }
+
+        var path = await BackgroundImageResolver();
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            BackgroundImagePath = path;
+        }
+    }
+
+    /// <summary>
+    /// 배경 이미지를 제거합니다.
+    /// </summary>
+    [RelayCommand]
+    private void ClearBackgroundImage() => BackgroundImagePath = string.Empty;
 
     /// <summary>
     /// Ollama 실행 여부와 선택 모델 설치 여부를 확인하고, 필요한 안내를 표시합니다.
@@ -1379,6 +1517,18 @@ public partial class MainViewModel : ObservableObject
     /// <summary>AI 어시스턴트 배경색 라벨 텍스트입니다.</summary>
     public string ChatBackgroundLabelText => _localizationService.Get(LanguageCode, "ChatBackgroundLabel");
 
+    /// <summary>편집기 폰트 크기 라벨 텍스트입니다.</summary>
+    public string EditorFontSizeLabelText => _localizationService.Get(LanguageCode, "EditorFontSizeLabel");
+
+    /// <summary>커스텀 테마 라벨 텍스트입니다.</summary>
+    public string CustomThemeLabelText => _localizationService.Get(LanguageCode, "CustomThemeLabel");
+
+    /// <summary>커스텀 배경색 라벨 텍스트입니다.</summary>
+    public string CustomBackgroundLabelText => _localizationService.Get(LanguageCode, "CustomBackgroundLabel");
+
+    /// <summary>커스텀 글자색 라벨 텍스트입니다.</summary>
+    public string CustomForegroundLabelText => _localizationService.Get(LanguageCode, "CustomForegroundLabel");
+
     /// <summary>
     /// 목표 라벨 텍스트를 반환합니다.
     /// </summary>
@@ -1476,7 +1626,11 @@ public partial class MainViewModel : ObservableObject
             ReferenceForegroundHex = ReferenceForegroundHex,
             ToolbarIconSize = ToolbarIconSize,
             ChatFontSize = ChatFontSize,
-            ChatBackgroundHex = ChatBackgroundHex
+            ChatBackgroundHex = ChatBackgroundHex,
+            EditorFontSize = EditorFontSize,
+            EditorFontFamily = EditorFontFamilyName,
+            BackgroundImagePath = BackgroundImagePath,
+            BackgroundOpacity = BackgroundOpacity
         });
     }
 
@@ -1498,6 +1652,10 @@ public partial class MainViewModel : ObservableObject
         ChatBackgroundHex = string.IsNullOrWhiteSpace(settings.ChatBackgroundHex)
             ? "#FF1E1E1E"
             : settings.ChatBackgroundHex;
+        EditorFontSize = settings.EditorFontSize <= 0 ? 30 : settings.EditorFontSize;
+        EditorFontFamilyName = string.IsNullOrWhiteSpace(settings.EditorFontFamily) ? "맑은 고딕" : settings.EditorFontFamily;
+        BackgroundImagePath = settings.BackgroundImagePath ?? string.Empty;
+        BackgroundOpacity = settings.BackgroundOpacity <= 0 ? 0.3 : settings.BackgroundOpacity;
         DailyWordGoal = settings.DailyWordGoal;
         AiModel = string.IsNullOrWhiteSpace(settings.AiModel) ? "exaone3.5:7.8b" : settings.AiModel;
         _aiBaseUrl = string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "http://localhost:11434/v1" : settings.AiBaseUrl;
@@ -1559,6 +1717,10 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(ToolbarIconSizeLabelText));
         OnPropertyChanged(nameof(ChatFontSizeLabelText));
         OnPropertyChanged(nameof(ChatBackgroundLabelText));
+        OnPropertyChanged(nameof(EditorFontSizeLabelText));
+        OnPropertyChanged(nameof(CustomThemeLabelText));
+        OnPropertyChanged(nameof(CustomBackgroundLabelText));
+        OnPropertyChanged(nameof(CustomForegroundLabelText));
         OnPropertyChanged(nameof(GoalLabelText));
         OnPropertyChanged(nameof(StatsText));
         OnPropertyChanged(nameof(ProgressText));

@@ -73,11 +73,19 @@ public partial class MainWindow : Window
         _viewModel.ExportPathResolver = ResolveExportPathAsync;
         _viewModel.SaveAsPathResolver = ResolveSaveAsPathAsync;
         _viewModel.ReferenceFolderResolver = ResolveReferenceFolderAsync;
+        _viewModel.BackgroundImageResolver = () =>
+        {
+            var dialog = new OpenFileDialog
+            {
+                Filter = "이미지 (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif|모든 파일 (*.*)|*.*"
+            };
+            return Task.FromResult(dialog.ShowDialog(this) == true ? dialog.FileName : null);
+        };
         _viewModel.DocxDocumentSaver = async path =>
         {
             try
             {
-                await docxExportService.ExportFlowDocumentAsync(path, _viewModel.Title, EditorTextBox.Document);
+                await docxExportService.ExportFlowDocumentAsync(path, _viewModel.Title, EditorTextBox.Document, _viewModel.EditorFontSize);
                 return true;
             }
             catch

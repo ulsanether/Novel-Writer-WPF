@@ -7,7 +7,7 @@
     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="clr-namespace:NovelWriter.Wpf.ViewModels"
-    Title="Light Word Editer"
+    Title="글만들기"
     Width="1280"
     Height="768"
     Background="{Binding EditorBackground}"
@@ -31,9 +31,9 @@
                 TextElement.FontSize="{Binding ChatFontSize}">
                 <!--  헤더: 제목 + 대화 지우기 + 닫기  -->
                 <materialDesign:ColorZone
-                    Mode="PrimaryDark"
+                    Padding="14,10"
                     DockPanel.Dock="Top"
-                    Padding="14,10">
+                    Mode="PrimaryDark">
                     <DockPanel>
                         <StackPanel
                             VerticalAlignment="Center"
@@ -56,20 +56,26 @@
                                 Command="{Binding ClearChatCommand}"
                                 Style="{StaticResource MaterialDesignToolButton}"
                                 ToolTip="Clear">
-                                <materialDesign:PackIcon Width="20" Height="20" Kind="DeleteSweepOutline" />
+                                <materialDesign:PackIcon
+                                    Width="20"
+                                    Height="20"
+                                    Kind="DeleteSweepOutline" />
                             </Button>
                             <Button
                                 Command="{Binding ToggleChatDrawerCommand}"
                                 Style="{StaticResource MaterialDesignToolButton}"
                                 ToolTip="Close">
-                                <materialDesign:PackIcon Width="20" Height="20" Kind="Close" />
+                                <materialDesign:PackIcon
+                                    Width="20"
+                                    Height="20"
+                                    Kind="Close" />
                             </Button>
                         </StackPanel>
                     </DockPanel>
                 </materialDesign:ColorZone>
 
                 <!--  입력 영역  -->
-                <Grid DockPanel.Dock="Bottom" Margin="10">
+                <Grid Margin="10" DockPanel.Dock="Bottom">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
@@ -93,14 +99,17 @@
                         Command="{Binding SendChatCommand}"
                         Style="{StaticResource MaterialDesignFloatingActionMiniButton}"
                         ToolTip="Send">
-                        <materialDesign:PackIcon Width="22" Height="22" Kind="Send" />
+                        <materialDesign:PackIcon
+                            Width="22"
+                            Height="22"
+                            Kind="Send" />
                     </Button>
                 </Grid>
 
                 <!--  진행 표시  -->
                 <ProgressBar
-                    DockPanel.Dock="Bottom"
                     Height="4"
+                    DockPanel.Dock="Bottom"
                     IsIndeterminate="True"
                     Visibility="{Binding IsChatBusy, Converter={StaticResource BoolToVis}}" />
 
@@ -110,8 +119,8 @@
                         Margin="20"
                         VerticalAlignment="Top"
                         Opacity="0.7"
-                        TextWrapping="Wrap"
                         Text="{Binding ChatEmptyText}"
+                        TextWrapping="Wrap"
                         Visibility="{Binding HasNoMessages, Converter={StaticResource BoolToVis}}" />
                     <ScrollViewer x:Name="ChatScrollViewer" VerticalScrollBarVisibility="Auto">
                         <ItemsControl Margin="6" ItemsSource="{Binding ChatMessages}">
@@ -146,9 +155,9 @@
             <DockPanel Width="380">
                 <!--  헤더: 제목 + 폴더 열기 / 새로고침 / 닫기  -->
                 <materialDesign:ColorZone
-                    Mode="PrimaryDark"
+                    Padding="14,10"
                     DockPanel.Dock="Top"
-                    Padding="14,10">
+                    Mode="PrimaryDark">
                     <DockPanel>
                         <StackPanel
                             VerticalAlignment="Center"
@@ -171,19 +180,28 @@
                                 Command="{Binding OpenReferenceFolderCommand}"
                                 Style="{StaticResource MaterialDesignToolButton}"
                                 ToolTip="{Binding ReferenceOpenFolderText}">
-                                <materialDesign:PackIcon Width="20" Height="20" Kind="FolderOpenOutline" />
+                                <materialDesign:PackIcon
+                                    Width="20"
+                                    Height="20"
+                                    Kind="FolderOpenOutline" />
                             </Button>
                             <Button
                                 Command="{Binding RefreshReferencesCommand}"
                                 Style="{StaticResource MaterialDesignToolButton}"
                                 ToolTip="{Binding ReferenceRefreshText}">
-                                <materialDesign:PackIcon Width="20" Height="20" Kind="Refresh" />
+                                <materialDesign:PackIcon
+                                    Width="20"
+                                    Height="20"
+                                    Kind="Refresh" />
                             </Button>
                             <Button
                                 Command="{Binding ToggleReferenceDrawerCommand}"
                                 Style="{StaticResource MaterialDesignToolButton}"
                                 ToolTip="Close">
-                                <materialDesign:PackIcon Width="20" Height="20" Kind="Close" />
+                                <materialDesign:PackIcon
+                                    Width="20"
+                                    Height="20"
+                                    Kind="Close" />
                             </Button>
                         </StackPanel>
                     </DockPanel>
@@ -210,24 +228,24 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <Separator DockPanel.Dock="Top" Margin="0" />
+                <Separator Margin="0" DockPanel.Dock="Top" />
 
                 <!--  빈 상태 안내  -->
                 <TextBlock
                     Margin="16"
                     VerticalAlignment="Top"
                     Opacity="0.7"
-                    TextWrapping="Wrap"
                     Text="{Binding ReferenceEmptyText}"
+                    TextWrapping="Wrap"
                     Visibility="{Binding HasNoReferences, Converter={StaticResource BoolToVis}}" />
 
                 <!--  선택 문서 내용 (경량 서식 렌더)  -->
                 <FlowDocumentScrollViewer
                     Margin="4"
-                    VerticalScrollBarVisibility="Auto"
+                    Document="{Binding SelectedReference.Content, Converter={StaticResource MarkdownConverter}}"
                     FontSize="{Binding ReferenceFontSize}"
                     Foreground="{Binding ReferenceForeground}"
-                    Document="{Binding SelectedReference.Content, Converter={StaticResource MarkdownConverter}}" />
+                    VerticalScrollBarVisibility="Auto" />
             </DockPanel>
         </materialDesign:DrawerHost.RightDrawerContent>
 
@@ -238,401 +256,448 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-        <materialDesign:ColorZone
-            x:Name="ChromePanel"
-            Grid.Row="0"
-            Mode="PrimaryDark">
-            <StackPanel>
-                <!--  메뉴 바: 워드프로세서 표준 메뉴 (파일/보기/테마/언어)  -->
-                <Menu
-                    Padding="6,2"
-                    Background="Transparent"
-                    FontSize="{Binding MenuFontSize}">
-                    <MenuItem Header="{Binding FileMenuText}">
-                        <MenuItem Command="{Binding NewDocumentCommand}" Header="{Binding NewDocumentText}">
-                            <MenuItem.Icon>
-                                <materialDesign:PackIcon Kind="FilePlusOutline" />
-                            </MenuItem.Icon>
+            <materialDesign:ColorZone
+                x:Name="ChromePanel"
+                Grid.Row="0"
+                Mode="PrimaryDark">
+                <StackPanel>
+                    <!--  메뉴 바: 워드프로세서 표준 메뉴 (파일/보기/테마/언어)  -->
+                    <Menu
+                        Padding="6,2"
+                        Background="Transparent"
+                        FontSize="{Binding MenuFontSize}">
+                        <MenuItem Header="{Binding FileMenuText}">
+                            <MenuItem Command="{Binding NewDocumentCommand}" Header="{Binding NewDocumentText}">
+                                <MenuItem.Icon>
+                                    <materialDesign:PackIcon Kind="FilePlusOutline" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator />
+                            <MenuItem
+                                Command="{Binding OpenCommand}"
+                                Header="{Binding OpenText}"
+                                InputGestureText="Ctrl+O">
+                                <MenuItem.Icon>
+                                    <materialDesign:PackIcon Kind="FolderOpenOutline" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem
+                                Command="{Binding SaveCommand}"
+                                Header="{Binding SaveText}"
+                                InputGestureText="Ctrl+S">
+                                <MenuItem.Icon>
+                                    <materialDesign:PackIcon Kind="ContentSaveOutline" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Command="{Binding SaveAsCommand}" Header="{Binding SaveAsText}">
+                                <MenuItem.Icon>
+                                    <materialDesign:PackIcon Kind="ContentSaveEditOutline" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator />
+                            <MenuItem Command="{Binding ExportCommand}" Header="{Binding ExportText}">
+                                <MenuItem.Icon>
+                                    <materialDesign:PackIcon Kind="FileWordOutline" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                         </MenuItem>
-                        <Separator />
-                        <MenuItem
-                            Command="{Binding OpenCommand}"
-                            Header="{Binding OpenText}"
-                            InputGestureText="Ctrl+O">
-                            <MenuItem.Icon>
+                        <MenuItem Header="{Binding ViewMenuText}">
+                            <MenuItem
+                                Command="{Binding ToggleFocusModeCommand}"
+                                Header="{Binding FocusText}"
+                                InputGestureText="F11">
+                                <MenuItem.Icon>
+                                    <materialDesign:PackIcon Kind="Fullscreen" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Command="{Binding FixTyposCommand}" Header="{Binding AiFixText}">
+                                <MenuItem.Icon>
+                                    <materialDesign:PackIcon Kind="AutoFix" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Command="{Binding CheckContextCommand}" Header="{Binding ContextCheckText}">
+                                <MenuItem.Icon>
+                                    <materialDesign:PackIcon Kind="TextBoxSearchOutline" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                        </MenuItem>
+                        <MenuItem Header="{Binding ThemeMenuText}">
+                            <MenuItem Command="{Binding SetDarkThemeCommand}" Header="{Binding ThemeDarkText}" />
+                            <MenuItem Command="{Binding SetLightThemeCommand}" Header="{Binding ThemeLightText}" />
+                            <MenuItem Command="{Binding SetCustomThemeCommand}" Header="{Binding ThemeCustomText}" />
+                        </MenuItem>
+                        <MenuItem Header="{Binding LanguageText}">
+                            <MenuItem Command="{Binding SetKoreanCommand}" Header="{Binding KoreanText}" />
+                            <MenuItem Command="{Binding SetEnglishCommand}" Header="{Binding EnglishText}" />
+                        </MenuItem>
+                        <MenuItem Click="OnOpenStoryPlanner" Header="스토리 플래너" />
+                        <MenuItem Click="OnOpenReferenceGenerator" Header="참고자료 생성기" />
+                        <MenuItem Click="OnOpenSettings" Header="{Binding SettingsMenuText}" />
+                    </Menu>
+
+                    <Separator Margin="0" Opacity="0.3" />
+
+                    <!--  툴바: 자주 쓰는 명령을 아이콘 버튼으로, 우측에 문서 제목 입력  -->
+                    <DockPanel Margin="8,4,12,6" LastChildFill="True">
+                        <StackPanel
+                            VerticalAlignment="Center"
+                            DockPanel.Dock="Left"
+                            Orientation="Horizontal">
+                            <StackPanel.Resources>
+                                <!--  툴바 아이콘 크기 (설정에서 조절)  -->
+                                <Style TargetType="materialDesign:PackIcon">
+                                    <Setter Property="Width" Value="{Binding DataContext.ToolbarIconSize, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                    <Setter Property="Height" Value="{Binding DataContext.ToolbarIconSize, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                </Style>
+                            </StackPanel.Resources>
+                            <Button
+                                Command="{Binding OpenCommand}"
+                                Style="{StaticResource MaterialDesignToolButton}"
+                                ToolTip="{Binding OpenText}">
                                 <materialDesign:PackIcon Kind="FolderOpenOutline" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-                        <MenuItem
-                            Command="{Binding SaveCommand}"
-                            Header="{Binding SaveText}"
-                            InputGestureText="Ctrl+S">
-                            <MenuItem.Icon>
+                            </Button>
+                            <Button
+                                Command="{Binding SaveCommand}"
+                                Style="{StaticResource MaterialDesignToolButton}"
+                                ToolTip="{Binding SaveText}">
                                 <materialDesign:PackIcon Kind="ContentSaveOutline" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-                        <MenuItem Command="{Binding SaveAsCommand}" Header="{Binding SaveAsText}">
-                            <MenuItem.Icon>
-                                <materialDesign:PackIcon Kind="ContentSaveEditOutline" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-                        <Separator />
-                        <MenuItem Command="{Binding ExportCommand}" Header="{Binding ExportText}">
-                            <MenuItem.Icon>
+                            </Button>
+                            <Button
+                                Command="{Binding ExportCommand}"
+                                Style="{StaticResource MaterialDesignToolButton}"
+                                ToolTip="{Binding ExportText}">
                                 <materialDesign:PackIcon Kind="FileWordOutline" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-                    </MenuItem>
-                    <MenuItem Header="{Binding ViewMenuText}">
-                        <MenuItem
-                            Command="{Binding ToggleFocusModeCommand}"
-                            Header="{Binding FocusText}"
-                            InputGestureText="F11">
-                            <MenuItem.Icon>
-                                <materialDesign:PackIcon Kind="Fullscreen" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-                        <MenuItem Command="{Binding FixTyposCommand}" Header="{Binding AiFixText}">
-                            <MenuItem.Icon>
+                            </Button>
+                            <Separator
+                                Width="1"
+                                Margin="6,4"
+                                Style="{StaticResource MaterialDesignSeparator}" />
+                            <Button
+                                Command="{Binding FixTyposCommand}"
+                                Style="{StaticResource MaterialDesignToolButton}"
+                                ToolTip="{Binding AiFixText}">
                                 <materialDesign:PackIcon Kind="AutoFix" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-                        <MenuItem Command="{Binding CheckContextCommand}" Header="{Binding ContextCheckText}">
-                            <MenuItem.Icon>
-                                <materialDesign:PackIcon Kind="TextBoxSearchOutline" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-                    </MenuItem>
-                    <MenuItem Header="{Binding ThemeMenuText}">
-                        <MenuItem Command="{Binding SetDarkThemeCommand}" Header="{Binding ThemeDarkText}" />
-                        <MenuItem Command="{Binding SetLightThemeCommand}" Header="{Binding ThemeLightText}" />
-                        <MenuItem Command="{Binding SetCustomThemeCommand}" Header="{Binding ThemeCustomText}" />
-                    </MenuItem>
-                    <MenuItem Header="{Binding LanguageText}">
-                        <MenuItem Command="{Binding SetKoreanCommand}" Header="{Binding KoreanText}" />
-                        <MenuItem Command="{Binding SetEnglishCommand}" Header="{Binding EnglishText}" />
-                    </MenuItem>
-                    <MenuItem Header="스토리 플래너" Click="OnOpenStoryPlanner" />
-                    <MenuItem Header="참고자료 생성기" Click="OnOpenReferenceGenerator" />
-                    <MenuItem Header="{Binding SettingsMenuText}" Click="OnOpenSettings" />
-                </Menu>
+                            </Button>
+                            <Button
+                                Command="{Binding ToggleFocusModeCommand}"
+                                Style="{StaticResource MaterialDesignToolButton}"
+                                ToolTip="{Binding FocusText}">
+                                <materialDesign:PackIcon Kind="Fullscreen" />
+                            </Button>
+                            <Separator
+                                Width="1"
+                                Margin="6,4"
+                                Style="{StaticResource MaterialDesignSeparator}" />
+                            <Button
+                                Command="{Binding ToggleChatDrawerCommand}"
+                                Style="{StaticResource MaterialDesignToolButton}"
+                                ToolTip="{Binding ChatTitleText}">
+                                <materialDesign:PackIcon Kind="ChatProcessingOutline" />
+                            </Button>
+                            <Button
+                                Command="{Binding ToggleReferenceDrawerCommand}"
+                                Style="{StaticResource MaterialDesignToolButton}"
+                                ToolTip="{Binding ReferenceTitleText}">
+                                <materialDesign:PackIcon Kind="BookOpenPageVariantOutline" />
+                            </Button>
+                            <Button
+                                Click="OnOpenStoryPlanner"
+                                Style="{StaticResource MaterialDesignToolButton}"
+                                ToolTip="스토리 플래너">
+                                <materialDesign:PackIcon Kind="FileTreeOutline" />
+                            </Button>
 
-                <Separator Margin="0" Opacity="0.3" />
+                            <Separator
+                                Width="1"
+                                Margin="6,4"
+                                Style="{StaticResource MaterialDesignSeparator}" />
 
-                <!--  툴바: 자주 쓰는 명령을 아이콘 버튼으로, 우측에 문서 제목 입력  -->
-                <DockPanel Margin="8,4,12,6" LastChildFill="True">
+                            <!--  서식: 글꼴/크기/굵게/기울임/밑줄/색/하이라이트  -->
+                            <ComboBox
+                                x:Name="FontFamilyCombo"
+                                Width="120"
+                                VerticalAlignment="Center"
+                                materialDesign:HintAssist.Hint="글꼴"
+                                SelectionChanged="OnFontFamilyChanged" />
+                            <ComboBox
+                                x:Name="FontSizeCombo"
+                                Width="60"
+                                Margin="6,0,0,0"
+                                VerticalAlignment="Center"
+                                materialDesign:HintAssist.Hint="크기"
+                                IsEditable="True"
+                                LostFocus="OnFontSizeChanged"
+                                SelectionChanged="OnFontSizeSelectionChanged"
+                                Text="24" />
+                            <Button
+                                Click="OnBold"
+                                Style="{StaticResource MaterialDesignToolButton}"
+                                ToolTip="굵게">
+                                <materialDesign:PackIcon
+                                    Width="20"
+                                    Height="20"
+                                    Kind="FormatBold" />
+                            </Button>
+                            <Button
+                                Click="OnItalic"
+                                Style="{StaticResource MaterialDesignToolButton}"
+                                ToolTip="기울임">
+                                <materialDesign:PackIcon
+                                    Width="20"
+                                    Height="20"
+                                    Kind="FormatItalic" />
+                            </Button>
+                            <Button
+                                Click="OnUnderline"
+                                Style="{StaticResource MaterialDesignToolButton}"
+                                ToolTip="밑줄">
+                                <materialDesign:PackIcon
+                                    Width="20"
+                                    Height="20"
+                                    Kind="FormatUnderline" />
+                            </Button>
+                            <Button
+                                Click="OnForegroundColor"
+                                Style="{StaticResource MaterialDesignToolButton}"
+                                ToolTip="글자색">
+                                <materialDesign:PackIcon
+                                    Width="20"
+                                    Height="20"
+                                    Kind="FormatColorText" />
+                            </Button>
+                            <Button
+                                Click="OnHighlightColor"
+                                Style="{StaticResource MaterialDesignToolButton}"
+                                ToolTip="하이라이트">
+                                <materialDesign:PackIcon
+                                    Width="20"
+                                    Height="20"
+                                    Kind="Marker" />
+                            </Button>
+                            <Button
+                                Click="OnClearFormatting"
+                                Style="{StaticResource MaterialDesignToolButton}"
+                                ToolTip="서식 지우기">
+                                <materialDesign:PackIcon
+                                    Width="20"
+                                    Height="20"
+                                    Kind="FormatClear" />
+                            </Button>
+                        </StackPanel>
+
+                        <TextBox
+                            MinWidth="120"
+                            MaxWidth="260"
+                            HorizontalAlignment="Right"
+                            VerticalContentAlignment="Center"
+                            materialDesign:HintAssist.Hint="{Binding TitlePlaceholder}"
+                            materialDesign:TextFieldAssist.HasClearButton="True"
+                            DockPanel.Dock="Right"
+                            Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" />
+                    </DockPanel>
+                </StackPanel>
+            </materialDesign:ColorZone>
+
+            <Grid Grid.Row="1">
+                <!--  커스텀 배경 이미지 (테마 커스텀)  -->
+                <Image
+                    Opacity="{Binding BackgroundOpacity}"
+                    Source="{Binding BackgroundImage}"
+                    Stretch="UniformToFill"
+                    Visibility="{Binding HasBackgroundImage, Converter={StaticResource BoolToVis}}" />
+                <RichTextBox
+                    x:Name="EditorTextBox"
+                    Margin="20"
+                    Padding="10"
+                    xml:lang="ko-KR"
+                    AcceptsReturn="True"
+                    AcceptsTab="True"
+                    Background="{Binding EditorEffectiveBackground}"
+                    BorderThickness="0"
+                    FontFamily="{Binding EditorFontFamily}"
+                    FontSize="{Binding EditorFontSize}"
+                    Foreground="{Binding EditorForeground}"
+                    HorizontalScrollBarVisibility="Disabled"
+                    SpellCheck.IsEnabled="False"
+                    VerticalScrollBarVisibility="Auto">
+                    <RichTextBox.Resources>
+                    <!--  문단 간격 제거 (소설은 줄바꿈 위주)  -->
+                    <Style TargetType="Paragraph">
+                        <Setter Property="Margin" Value="0" />
+                    </Style>
+                    <!--  에디터 세로 스크롤바를 더 두껍게 (기본 MaterialDesign 스타일은 매우 얇음)  -->
+                    <Style BasedOn="{StaticResource {x:Type ScrollBar}}" TargetType="ScrollBar">
+                        <Style.Triggers>
+                            <Trigger Property="Orientation" Value="Vertical">
+                                <Setter Property="Width" Value="16" />
+                                <Setter Property="MinWidth" Value="16" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                    </RichTextBox.Resources>
+                </RichTextBox>
+            </Grid>
+
+            <Border
+                Grid.Row="2"
+                Padding="12,6"
+                Background="#22000000">
+                <DockPanel>
+                    <!--  좌측: 문서 통계  -->
                     <StackPanel
                         VerticalAlignment="Center"
                         DockPanel.Dock="Left"
                         Orientation="Horizontal">
-                        <StackPanel.Resources>
-                            <!--  툴바 아이콘 크기 (설정에서 조절)  -->
-                            <Style TargetType="materialDesign:PackIcon">
-                                <Setter Property="Width" Value="{Binding DataContext.ToolbarIconSize, RelativeSource={RelativeSource AncestorType=Window}}" />
-                                <Setter Property="Height" Value="{Binding DataContext.ToolbarIconSize, RelativeSource={RelativeSource AncestorType=Window}}" />
-                            </Style>
-                        </StackPanel.Resources>
-                        <Button
-                            Command="{Binding OpenCommand}"
-                            Style="{StaticResource MaterialDesignToolButton}"
-                            ToolTip="{Binding OpenText}">
-                            <materialDesign:PackIcon Kind="FolderOpenOutline" />
-                        </Button>
-                        <Button
-                            Command="{Binding SaveCommand}"
-                            Style="{StaticResource MaterialDesignToolButton}"
-                            ToolTip="{Binding SaveText}">
-                            <materialDesign:PackIcon Kind="ContentSaveOutline" />
-                        </Button>
-                        <Button
-                            Command="{Binding ExportCommand}"
-                            Style="{StaticResource MaterialDesignToolButton}"
-                            ToolTip="{Binding ExportText}">
-                            <materialDesign:PackIcon Kind="FileWordOutline" />
-                        </Button>
-                        <Separator
-                            Width="1"
-                            Margin="6,4"
-                            Style="{StaticResource MaterialDesignSeparator}" />
-                        <Button
-                            Command="{Binding FixTyposCommand}"
-                            Style="{StaticResource MaterialDesignToolButton}"
-                            ToolTip="{Binding AiFixText}">
-                            <materialDesign:PackIcon Kind="AutoFix" />
-                        </Button>
-                        <Button
-                            Command="{Binding ToggleFocusModeCommand}"
-                            Style="{StaticResource MaterialDesignToolButton}"
-                            ToolTip="{Binding FocusText}">
-                            <materialDesign:PackIcon Kind="Fullscreen" />
-                        </Button>
-                        <Separator
-                            Width="1"
-                            Margin="6,4"
-                            Style="{StaticResource MaterialDesignSeparator}" />
-                        <Button
-                            Command="{Binding ToggleChatDrawerCommand}"
-                            Style="{StaticResource MaterialDesignToolButton}"
-                            ToolTip="{Binding ChatTitleText}">
-                            <materialDesign:PackIcon Kind="ChatProcessingOutline" />
-                        </Button>
-                        <Button
-                            Command="{Binding ToggleReferenceDrawerCommand}"
-                            Style="{StaticResource MaterialDesignToolButton}"
-                            ToolTip="{Binding ReferenceTitleText}">
-                            <materialDesign:PackIcon Kind="BookOpenPageVariantOutline" />
-                        </Button>
-                        <Button
-                            Click="OnOpenStoryPlanner"
-                            Style="{StaticResource MaterialDesignToolButton}"
-                            ToolTip="스토리 플래너">
-                            <materialDesign:PackIcon Kind="FileTreeOutline" />
-                        </Button>
-
-                        <Separator Width="1" Margin="6,4" Style="{StaticResource MaterialDesignSeparator}" />
-
-                        <!--  서식: 글꼴/크기/굵게/기울임/밑줄/색/하이라이트  -->
-                        <ComboBox
-                            x:Name="FontFamilyCombo"
-                            Width="120"
-                            VerticalAlignment="Center"
-                            materialDesign:HintAssist.Hint="글꼴"
-                            SelectionChanged="OnFontFamilyChanged" />
-                        <ComboBox
-                            x:Name="FontSizeCombo"
-                            Width="60"
-                            Margin="6,0,0,0"
-                            VerticalAlignment="Center"
-                            IsEditable="True"
-                            materialDesign:HintAssist.Hint="크기"
-                            LostFocus="OnFontSizeChanged"
-                            SelectionChanged="OnFontSizeSelectionChanged"
-                            Text="24" />
-                        <Button Click="OnBold" Style="{StaticResource MaterialDesignToolButton}" ToolTip="굵게">
-                            <materialDesign:PackIcon Width="20" Height="20" Kind="FormatBold" />
-                        </Button>
-                        <Button Click="OnItalic" Style="{StaticResource MaterialDesignToolButton}" ToolTip="기울임">
-                            <materialDesign:PackIcon Width="20" Height="20" Kind="FormatItalic" />
-                        </Button>
-                        <Button Click="OnUnderline" Style="{StaticResource MaterialDesignToolButton}" ToolTip="밑줄">
-                            <materialDesign:PackIcon Width="20" Height="20" Kind="FormatUnderline" />
-                        </Button>
-                        <Button Click="OnForegroundColor" Style="{StaticResource MaterialDesignToolButton}" ToolTip="글자색">
-                            <materialDesign:PackIcon Width="20" Height="20" Kind="FormatColorText" />
-                        </Button>
-                        <Button Click="OnHighlightColor" Style="{StaticResource MaterialDesignToolButton}" ToolTip="하이라이트">
-                            <materialDesign:PackIcon Width="20" Height="20" Kind="Marker" />
-                        </Button>
-                        <Button Click="OnClearFormatting" Style="{StaticResource MaterialDesignToolButton}" ToolTip="서식 지우기">
-                            <materialDesign:PackIcon Width="20" Height="20" Kind="FormatClear" />
-                        </Button>
-                    </StackPanel>
-
-                    <TextBox
-                        MinWidth="120"
-                        MaxWidth="260"
-                        HorizontalAlignment="Right"
-                        VerticalContentAlignment="Center"
-                        materialDesign:HintAssist.Hint="{Binding TitlePlaceholder}"
-                        materialDesign:TextFieldAssist.HasClearButton="True"
-                        DockPanel.Dock="Right"
-                        Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" />
-                </DockPanel>
-            </StackPanel>
-        </materialDesign:ColorZone>
-
-        <RichTextBox
-            x:Name="EditorTextBox"
-            Grid.Row="1"
-            Margin="20"
-            Padding="10"
-            xml:lang="ko-KR"
-            AcceptsReturn="True"
-            AcceptsTab="True"
-            Background="{Binding EditorBackground}"
-            BorderThickness="0"
-            FontSize="24"
-            Foreground="{Binding EditorForeground}"
-            HorizontalScrollBarVisibility="Disabled"
-            SpellCheck.IsEnabled="False"
-            VerticalScrollBarVisibility="Auto">
-            <RichTextBox.Resources>
-                <!--  문단 간격 제거 (소설은 줄바꿈 위주)  -->
-                <Style TargetType="Paragraph">
-                    <Setter Property="Margin" Value="0" />
-                </Style>
-                <!--  에디터 세로 스크롤바를 더 두껍게 (기본 MaterialDesign 스타일은 매우 얇음)  -->
-                <Style BasedOn="{StaticResource {x:Type ScrollBar}}" TargetType="ScrollBar">
-                    <Style.Triggers>
-                        <Trigger Property="Orientation" Value="Vertical">
-                            <Setter Property="Width" Value="16" />
-                            <Setter Property="MinWidth" Value="16" />
-                        </Trigger>
-                    </Style.Triggers>
-                </Style>
-            </RichTextBox.Resources>
-        </RichTextBox>
-
-        <Border
-            Grid.Row="2"
-            Padding="12,6"
-            Background="#22000000">
-            <DockPanel>
-                <!--  좌측: 문서 통계  -->
-                <StackPanel
-                    VerticalAlignment="Center"
-                    DockPanel.Dock="Left"
-                    Orientation="Horizontal">
-                    <TextBlock
-                        Margin="0,0,12,0"
-                        FontWeight="Bold"
-                        Foreground="{Binding EditorForeground}"
-                        Text="{Binding StatsText}" />
-                    <TextBlock Margin="0,0,10,0" Foreground="{Binding EditorForeground}">
-                        <Run Text="{Binding WordText, Mode=OneWay}" />
-                        <Run Text=": " />
-                        <Run Text="{Binding WordCount, Mode=OneWay}" />
-                    </TextBlock>
-                    <TextBlock Margin="0,0,10,0" Foreground="{Binding EditorForeground}">
-                        <Run Text="{Binding CharacterText, Mode=OneWay}" />
-                        <Run Text=": " />
-                        <Run Text="{Binding CharacterCount, Mode=OneWay}" />
-                    </TextBlock>
-                    <TextBlock Margin="0,0,10,0" Foreground="{Binding EditorForeground}">
-                        <Run Text="{Binding PageText, Mode=OneWay}" />
-                        <Run Text=": " />
-                        <Run Text="{Binding PageCount}" />
-                    </TextBlock>
-                    <TextBlock Margin="0,0,10,0" Foreground="{Binding EditorForeground}">
-                        <Run Text="{Binding ParagraphText, Mode=OneWay}" />
-                        <Run Text=": " />
-                        <Run Text="{Binding ParagraphCount}" />
-                    </TextBlock>
-                    <TextBlock Margin="0,0,10,0" Foreground="{Binding EditorForeground}">
-                        <Run Text="{Binding SentenceText, Mode=OneWay}" />
-                        <Run Text=": " />
-                        <Run Text="{Binding SentenceCount}" />
-                    </TextBlock>
-                </StackPanel>
-
-                <!--  우측: 상태 메시지  -->
-                <TextBlock
-                    Margin="12,0,0,0"
-                    VerticalAlignment="Center"
-                    DockPanel.Dock="Right"
-                    Foreground="{Binding EditorForeground}"
-                    Opacity="0.85"
-                    Text="{Binding StatusMessage}" />
-
-                <!--  중앙(우측 정렬): 일일 목표  -->
-                <StackPanel
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Center"
-                    Orientation="Horizontal">
-                    <materialDesign:PackIcon
-                        Width="18"
-                        Height="18"
-                        Margin="0,0,6,0"
-                        VerticalAlignment="Center"
-                        Foreground="{Binding EditorForeground}"
-                        Kind="TargetVariant" />
-                    <TextBox
-                        Width="56"
-                        VerticalContentAlignment="Center"
-                        Text="{Binding DailyWordGoal, UpdateSourceTrigger=PropertyChanged}"
-                        ToolTip="{Binding GoalLabelText}" />
-                    <ProgressBar
-                        Width="120"
-                        Height="8"
-                        Margin="8,0,0,0"
-                        VerticalAlignment="Center"
-                        Maximum="100"
-                        Value="{Binding DailyProgressPercent}" />
-                    <TextBlock
-                        MinWidth="36"
-                        Margin="8,0,0,0"
-                        VerticalAlignment="Center"
-                        Foreground="{Binding EditorForeground}"
-                        Text="{Binding DailyProgressPercent, StringFormat={}{0}%}" />
-                </StackPanel>
-            </DockPanel>
-        </Border>
-
-        <!--  AI 모델 준비 오버레이 (Ollama 감지 / 모델 자동 다운로드)  -->
-        <Border
-            Grid.Row="0"
-            Grid.RowSpan="3"
-            Panel.ZIndex="10"
-            Background="#B3000000"
-            Visibility="{Binding IsAiSetupVisible, Converter={StaticResource BoolToVis}}">
-            <materialDesign:Card
-                MaxWidth="460"
-                Margin="24"
-                Padding="24"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                UniformCornerRadius="12">
-                <StackPanel>
-                    <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
-                        <materialDesign:PackIcon
-                            Width="26"
-                            Height="26"
-                            Margin="0,0,10,0"
-                            VerticalAlignment="Center"
-                            Kind="RobotOutline" />
                         <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="18"
-                            FontWeight="SemiBold"
-                            Text="{Binding AiSetupTitleText}" />
+                            Margin="0,0,12,0"
+                            FontWeight="Bold"
+                            Foreground="{Binding EditorForeground}"
+                            Text="{Binding StatsText}" />
+                        <TextBlock Margin="0,0,10,0" Foreground="{Binding EditorForeground}">
+                            <Run Text="{Binding WordText, Mode=OneWay}" />
+                            <Run Text=": " />
+                            <Run Text="{Binding WordCount, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock Margin="0,0,10,0" Foreground="{Binding EditorForeground}">
+                            <Run Text="{Binding CharacterText, Mode=OneWay}" />
+                            <Run Text=": " />
+                            <Run Text="{Binding CharacterCount, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock Margin="0,0,10,0" Foreground="{Binding EditorForeground}">
+                            <Run Text="{Binding PageText, Mode=OneWay}" />
+                            <Run Text=": " />
+                            <Run Text="{Binding PageCount}" />
+                        </TextBlock>
+                        <TextBlock Margin="0,0,10,0" Foreground="{Binding EditorForeground}">
+                            <Run Text="{Binding ParagraphText, Mode=OneWay}" />
+                            <Run Text=": " />
+                            <Run Text="{Binding ParagraphCount}" />
+                        </TextBlock>
+                        <TextBlock Margin="0,0,10,0" Foreground="{Binding EditorForeground}">
+                            <Run Text="{Binding SentenceText, Mode=OneWay}" />
+                            <Run Text=": " />
+                            <Run Text="{Binding SentenceCount}" />
+                        </TextBlock>
                     </StackPanel>
 
+                    <!--  우측: 상태 메시지  -->
                     <TextBlock
-                        Margin="0,0,0,16"
-                        TextWrapping="Wrap"
-                        Text="{Binding AiSetupMessage}" />
+                        Margin="12,0,0,0"
+                        VerticalAlignment="Center"
+                        DockPanel.Dock="Right"
+                        Foreground="{Binding EditorForeground}"
+                        Opacity="0.85"
+                        Text="{Binding StatusMessage}" />
 
-                    <ProgressBar
-                        Height="8"
-                        Margin="0,0,0,16"
-                        Maximum="100"
-                        IsIndeterminate="{Binding IsAiProgressIndeterminate}"
-                        Value="{Binding AiSetupProgress}"
-                        Visibility="{Binding IsAiSetupBusy, Converter={StaticResource BoolToVis}}" />
+                    <!--  중앙(우측 정렬): 일일 목표  -->
+                    <StackPanel
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal">
+                        <materialDesign:PackIcon
+                            Width="18"
+                            Height="18"
+                            Margin="0,0,6,0"
+                            VerticalAlignment="Center"
+                            Foreground="{Binding EditorForeground}"
+                            Kind="TargetVariant" />
+                        <TextBox
+                            Width="56"
+                            VerticalContentAlignment="Center"
+                            Text="{Binding DailyWordGoal, UpdateSourceTrigger=PropertyChanged}"
+                            ToolTip="{Binding GoalLabelText}" />
+                        <ProgressBar
+                            Width="120"
+                            Height="8"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Center"
+                            Maximum="100"
+                            Value="{Binding DailyProgressPercent}" />
+                        <TextBlock
+                            MinWidth="36"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Center"
+                            Foreground="{Binding EditorForeground}"
+                            Text="{Binding DailyProgressPercent, StringFormat={}{0}%}" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
 
-                    <WrapPanel HorizontalAlignment="Right">
-                        <Button
-                            Margin="0,0,8,0"
-                            Command="{Binding DownloadModelCommand}"
-                            Content="{Binding AiSetupDownloadText}"
-                            Style="{StaticResource MaterialDesignRaisedButton}"
-                            Visibility="{Binding CanDownloadModel, Converter={StaticResource BoolToVis}}" />
-                        <Button
-                            Margin="0,0,8,0"
-                            Command="{Binding CancelDownloadCommand}"
-                            Content="{Binding AiSetupCancelText}"
-                            Style="{StaticResource MaterialDesignOutlinedButton}"
-                            Visibility="{Binding IsAiSetupBusy, Converter={StaticResource BoolToVis}}" />
-                        <Button
-                            Margin="0,0,8,0"
-                            Command="{Binding OpenOllamaSiteCommand}"
-                            Content="{Binding AiSetupOpenOllamaText}"
-                            Style="{StaticResource MaterialDesignOutlinedButton}"
-                            Visibility="{Binding IsOllamaMissing, Converter={StaticResource BoolToVis}}" />
-                        <Button
-                            Margin="0,0,8,0"
-                            Command="{Binding RetryAiSetupCommand}"
-                            Content="{Binding AiSetupRetryText}"
-                            Style="{StaticResource MaterialDesignFlatButton}"
-                            Visibility="{Binding IsOllamaMissing, Converter={StaticResource BoolToVis}}" />
-                        <Button
-                            Command="{Binding DismissAiSetupCommand}"
-                            Content="{Binding AiSetupDismissText}"
-                            Style="{StaticResource MaterialDesignFlatButton}" />
-                    </WrapPanel>
-                </StackPanel>
-            </materialDesign:Card>
-        </Border>
+            <!--  AI 모델 준비 오버레이 (Ollama 감지 / 모델 자동 다운로드)  -->
+            <Border
+                Grid.Row="0"
+                Grid.RowSpan="3"
+                Panel.ZIndex="10"
+                Background="#B3000000"
+                Visibility="{Binding IsAiSetupVisible, Converter={StaticResource BoolToVis}}">
+                <materialDesign:Card
+                    MaxWidth="460"
+                    Margin="24"
+                    Padding="24"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    UniformCornerRadius="12">
+                    <StackPanel>
+                        <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+                            <materialDesign:PackIcon
+                                Width="26"
+                                Height="26"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Kind="RobotOutline" />
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                FontWeight="SemiBold"
+                                Text="{Binding AiSetupTitleText}" />
+                        </StackPanel>
+
+                        <TextBlock
+                            Margin="0,0,0,16"
+                            Text="{Binding AiSetupMessage}"
+                            TextWrapping="Wrap" />
+
+                        <ProgressBar
+                            Height="8"
+                            Margin="0,0,0,16"
+                            IsIndeterminate="{Binding IsAiProgressIndeterminate}"
+                            Maximum="100"
+                            Visibility="{Binding IsAiSetupBusy, Converter={StaticResource BoolToVis}}"
+                            Value="{Binding AiSetupProgress}" />
+
+                        <WrapPanel HorizontalAlignment="Right">
+                            <Button
+                                Margin="0,0,8,0"
+                                Command="{Binding DownloadModelCommand}"
+                                Content="{Binding AiSetupDownloadText}"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Visibility="{Binding CanDownloadModel, Converter={StaticResource BoolToVis}}" />
+                            <Button
+                                Margin="0,0,8,0"
+                                Command="{Binding CancelDownloadCommand}"
+                                Content="{Binding AiSetupCancelText}"
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                Visibility="{Binding IsAiSetupBusy, Converter={StaticResource BoolToVis}}" />
+                            <Button
+                                Margin="0,0,8,0"
+                                Command="{Binding OpenOllamaSiteCommand}"
+                                Content="{Binding AiSetupOpenOllamaText}"
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                Visibility="{Binding IsOllamaMissing, Converter={StaticResource BoolToVis}}" />
+                            <Button
+                                Margin="0,0,8,0"
+                                Command="{Binding RetryAiSetupCommand}"
+                                Content="{Binding AiSetupRetryText}"
+                                Style="{StaticResource MaterialDesignFlatButton}"
+                                Visibility="{Binding IsOllamaMissing, Converter={StaticResource BoolToVis}}" />
+                            <Button
+                                Command="{Binding DismissAiSetupCommand}"
+                                Content="{Binding AiSetupDismissText}"
+                                Style="{StaticResource MaterialDesignFlatButton}" />
+                        </WrapPanel>
+                    </StackPanel>
+                </materialDesign:Card>
+            </Border>
         </Grid>
     </materialDesign:DrawerHost>
 </Window>

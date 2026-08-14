@@ -39,7 +39,7 @@ public sealed class DocxExportService
     /// <summary>
     /// RichTextBox의 FlowDocument를 서식(굵게·기울임·밑줄·색·크기·하이라이트)까지 DOCX로 저장합니다.
     /// </summary>
-    public Task ExportFlowDocumentAsync(string filePath, string title, WpfDoc.FlowDocument flowDocument)
+    public Task ExportFlowDocumentAsync(string filePath, string title, WpfDoc.FlowDocument flowDocument, double baseFontSizePx = 30)
     {
         using var document = WordprocessingDocument.Create(filePath, WordprocessingDocumentType.Document);
         var mainPart = document.AddMainDocumentPart();
@@ -56,7 +56,7 @@ public sealed class DocxExportService
             if (block is WpfDoc.Paragraph wpfParagraph)
             {
                 var paragraph = new Paragraph();
-                AppendInlines(paragraph, wpfParagraph.Inlines);
+                AppendInlines(paragraph, wpfParagraph.Inlines, baseFontSizePx);
                 body.AppendChild(paragraph);
             }
         }
@@ -66,27 +66,27 @@ public sealed class DocxExportService
         return Task.CompletedTask;
     }
 
-    private static void AppendInlines(Paragraph paragraph, WpfDoc.InlineCollection inlines)
+    private static void AppendInlines(Paragraph paragraph, WpfDoc.InlineCollection inlines, double baseFontSizePx)
     {
         foreach (var inline in inlines)
         {
             switch (inline)
             {
                 case WpfDoc.Run wpfRun:
-                    paragraph.AppendChild(BuildRun(wpfRun));
+                    paragraph.AppendChild(BuildRun(wpfRun, baseFontSizePx));
                     break;
                 case WpfDoc.LineBreak:
                     paragraph.AppendChild(new Run(new Break()));
                     break;
                 case WpfDoc.Span span:
                     // Bold/Italic/Underline/Hyperlink 등 컨테이너는 내부 Run을 재귀 처리합니다.
-                    AppendInlines(paragraph, span.Inlines);
+                    AppendInlines(paragraph, span.Inlines, baseFontSizePx);
                     break;
             }
         }
     }
 
-    private static Run BuildRun(WpfDoc.Run wpfRun)
+    private static Run BuildRun(WpfDoc.Run wpfRun, double baseFontSizePx)
     {
         var properties = new RunProperties();
 
@@ -110,10 +110,11 @@ public sealed class DocxExportService
             properties.Append(new Color { Val = ToHex(foreground.Color) });
         }
 
-        if (!double.IsNaN(wpfRun.FontSize) && wpfRun.FontSize > 0)
+        if (!double.IsNaN(wpfRun.FontSize) && wpfRun.FontSize > 0 && baseFontSizePx > 0)
         {
-            // WPF FontSize(1/96인치 px) → DOCX sz(하프포인트) : px * 72/96 * 2 = px * 1.5
-            var halfPoints = (int)System.Math.Round(wpfRun.FontSize * 1.5);
+            // 편집기 기본 크기(baseFontSizePx)가 11pt(sz 22)가 되도록 변환합니다.
+            // sz(하프포인트) = px / base * 22. 화면을 키워도 기본 텍스트는 11pt로 저장됩니다.
+            var halfPoints = (int)System.Math.Round(wpfRun.FontSize / baseFontSizePx * 22.0);
             properties.Append(new FontSize { Val = halfPoints.ToString(System.Globalization.CultureInfo.InvariantCulture) });
         }
 

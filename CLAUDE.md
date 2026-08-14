@@ -67,7 +67,8 @@ dotnet run --project NovelWriter.Wpf      # 실행 (Windows에서만 동작)
 - `Content` 외부 변경(새 문서/열기/오타 교체/스토리 삽입) → `OnViewModelPropertyChanged` → `SyncEditorFromViewModel` → `SetPlainText`. 순환은 `_syncingEditor` 플래그로 방지.
 - **문자 오프셋 통일**: 문단/줄바꿈을 모두 `\n` 1글자로 취급(`RichTextBoxHelpers`의 GetPlainText/GetPointerAtOffset/GetOffset). `StatisticsService`도 `\n` 기준. 오타 `TypoMark`의 offset과 어도너·우클릭·`VisibleRangeResolver`(`GetPositionFromPoint`→`GetOffset`)가 이 규칙을 공유합니다.
 - **서식 툴바**(두 번째 툴바 행, 코드비하인드 이벤트): 글꼴/크기 ComboBox, 굵게·기울임·밑줄 토글(`Selection.ApplyPropertyValue`), 글자색·하이라이트(`ShowColorMenu` 팔레트 ContextMenu → Foreground/Background), 서식 지우기(`ClearAllProperties`).
-- **DOCX 서식 저장**: `.docx`로 저장/내보내기 시 `DocxDocumentSaver` 콜백(View)이 `DocxExportService.ExportFlowDocumentAsync`로 **RichTextBox FlowDocument → DOCX 서식**(굵게·기울임·밑줄·글자색·크기·하이라이트)을 매핑해 저장합니다. WPF FontSize(px)는 `sz`(하프포인트) = `px*1.5`로 변환. txt/md는 평문 저장.
+- **DOCX 서식 저장**: `.docx`로 저장/내보내기 시 `DocxDocumentSaver` 콜백(View)이 `DocxExportService.ExportFlowDocumentAsync`로 **RichTextBox FlowDocument → DOCX 서식**(굵게·기울임·밑줄·글자색·크기·하이라이트)을 매핑해 저장합니다. **편집기 기본 24px = 11pt** 기준: `sz`(하프포인트) = `px * 11/12`. txt/md는 평문 저장.
+- **편집기 폰트 크기**: `EditorFontSize`(기본 24px)를 설정 창 슬라이더로 조절, RichTextBox `FontSize`에 바인딩. 화면은 크게 보이되 DOCX 저장은 11pt로 나갑니다.
 - **참고자료 생성기**(메뉴 "참고자료 생성기" → `ReferenceGeneratorWindow`/`ReferenceGeneratorViewModel`): 유형(캐릭터/세계관/시놉시스 등) + 요청으로 `ChatService`가 **마크다운(.md)** 생성 → 편집 후 `.md` 저장. 저장 후 참고자료 서랍을 새로고침합니다. 유형에 "묘사·표현 모음/감정·심리 묘사/배경·풍경 묘사/대사·문장 모음"이 있고, 이 계열은 `BuildSystemPrompt`가 **소설 문장 특화 프롬프트**(참신한 묘사·표현을 바로 쓸 수 있는 문장으로)로 전환합니다.
 
 ### 데이터/설정 경로
@@ -103,7 +104,8 @@ OpenAI 호환 Chat Completions API를 호출합니다. 서버 주소·모델은 
 
 - **다른 이름으로 저장**(파일 메뉴): `SaveAsCommand` → `SaveAsPathResolver`(SaveFileDialog, txt/md/docx). 확장자가 `.docx`면 `DocxExportService`, 그 외는 `File.WriteAllTextAsync`.
 - **설정 창**(상단 "설정" 메뉴 → `MainWindow.OnOpenSettings` → `SettingsWindow`): DataContext로 `MainViewModel`을 공유하며 세로 스크롤. 항목 = AI 모델(ComboBox), 자동 저장 on/off(`AutoSaveEnabled`→`UpdateAutoSaveTimer`)·주기(`AutoSaveSeconds`), 메뉴 폰트 크기(`MenuFontSize`→상단 `Menu.FontSize`), **툴바 아이콘 크기**(`ToolbarIconSize`→툴바 `StackPanel.Resources`의 `PackIcon` 암시적 스타일 Width/Height), 참고자료 폰트 크기(`ReferenceFontSize`)·색, **AI 어시스턴트 폰트 크기**(`ChatFontSize`→채팅 `DockPanel.TextElement.FontSize`)·**배경색**(`ChatBackgroundHex`→`ChatBackground`). "저장"이 `SaveSettingsCommand`(→`PersistSettingsAsync` + `EnsureAiReadyAsync` 재확인) 호출.
-- **색 팔레트**: 색 설정은 hex 입력 + `PaletteColors` 스와치(ItemsControl)에서 선택. 스와치 클릭 → `SetReferenceColorCommand`/`SetChatBackgroundCommand`(CommandParameter=hex). 스와치 배경은 `StringToBrushConverter`로 hex→Brush.
+- **색 팔레트**: 색 설정은 hex 입력 + `PaletteColors` 스와치(ItemsControl)에서 선택. 스와치 클릭 → `SetReferenceColorCommand`/`SetChatBackgroundCommand`/`SetCustomBackgroundCommand`/`SetCustomForegroundCommand`(CommandParameter=hex). 스와치 배경은 `StringToBrushConverter`로 hex→Brush.
+- **테마 커스텀**: 설정 창 하단에서 커스텀 배경/글자색을 hex+팔레트로 지정. `SetCustomBackground`/`SetCustomForeground`가 `Theme="Custom"` + `ApplyTheme()`로 즉시 반영(`CustomBackgroundHex`/`CustomForegroundHex`).
 - 참고자료 폰트/색 상속을 위해 `MarkdownFlowDocumentConverter`는 FlowDocument에 FontSize/Foreground를 지정하지 않습니다(뷰어 바인딩 값 상속).
 
 ### 로컬 모델 온보딩 (`OllamaService` + AI 준비 오버레이)

@@ -84,4 +84,24 @@ public sealed class AppSettings
     /// AI 어시스턴트(채팅) 배경색(ARGB hex)을 가져오거나 설정합니다.
     /// </summary>
     public string ChatBackgroundHex { get; set; } = "#FF1E1E1E";
+
+    /// <summary>
+    /// 에디터 표시 폰트 크기(px)를 가져오거나 설정합니다. 이 크기가 DOCX에서 11pt로 저장됩니다.
+    /// </summary>
+    public double EditorFontSize { get; set; } = 30;
+
+    /// <summary>
+    /// 에디터 폰트 종류(글꼴 이름)를 가져오거나 설정합니다.
+    /// </summary>
+    public string EditorFontFamily { get; set; } = "맑은 고딕";
+
+    /// <summary>
+    /// 에디터 배경 이미지 파일 경로를 가져오거나 설정합니다. (빈 문자열이면 색 배경)
+    /// </summary>
+    public string BackgroundImagePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 배경 이미지 투명도(0~1)를 가져오거나 설정합니다.
+    /// </summary>
+    public double BackgroundOpacity { get; set; } = 0.3;
 }

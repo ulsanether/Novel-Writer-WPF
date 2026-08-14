@@ -1,38 +1,23 @@
-# Claude에 Novel Writer WPF 개발 
 
-Novel Writer (WPF 기반 소설 작가용 집중형 에디터)
 
----
+#Novel Writer
 
-## 목차
-1. [프롬프트 구조](#프롬프트-구조)
-2. [Phase 1: 초기 프로젝트 설정](#phase-1-초기-프로젝트-설정)
-3. [Phase 2: 집중 모드 에디터](#phase-2-집중-모드-에디터)
-4. [Phase 3: 저장 및 관리](#phase-3-저장-및-관리)
-5. [Phase 4: 테마 및 설정](#phase-4-테마-및-설정)
-6. [효과적한 요청 팁](#효과적한-요청-팁)
-7. [체크리스트](#체크리스트)
 
----
+<p align="center">
+  <img src="Img/01.png" width="30%" style="margin: 5px;">
+  <img src="Img/02.png" width="30%" style="margin: 5px;"><br>
+  <img src="Img/03.png" width="30%" style="margin: 5px;">
+  <img src="Img/04.png" width="30%" style="margin: 5px;"><br>
+  <img src="Img/05.png" width="30%" style="margin: 5px;">
+  <img src="Img/06.png" width="30%" style="margin: 5px;"><br>
+  <img src="Img/07.png" width="30%" style="margin: 5px;">
+</p>
 
-## 프롬프트 구조
 
-효과적한 Claude 요청은 다음 구조를 따릅니다:
 
-```
-1. 프로젝트 개요 (What)      - 무엇을 만드는가?
-2. 기술 요구사항 (How)       - 어떻게 만드는가?
-3. 기능 목록 (Features)       - 어떤 기능이 필요한가?
-4. 구조 (Architecture)        - 파일 구조와 클래스 다이어그램
-5. 단계별 목표 (Phases)       - 단계별로 무엇을 할 것인가?
-6. 제약사항 (Constraints)     - 제한사항과 선호도
-```
-
----
 
 ## Phase 1: 초기 프로젝트 설정
 
-### 📋 사용할 프롬프트
 
 ```markdown
 # Novel Writer - WPF 데스크톱 앱 초기 프로젝트 설정
