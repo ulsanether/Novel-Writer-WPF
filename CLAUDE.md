@@ -15,6 +15,8 @@ dotnet build                              # 빌드
 dotnet run --project NovelWriter.Wpf      # 실행 (Windows에서만 동작)
 ```
 
+- 프로젝트/네임스페이스는 `NovelWriter.Wpf`이지만, **어셈블리(exe) 이름은 `NovelWriter`**(`<AssemblyName>`)입니다 — 산출물은 `bin/Debug/net8.0-windows/NovelWriter.exe`. 앱 아이콘은 `Resources/app.ico`(`<ApplicationIcon>`).
+
 - 테스트 프로젝트는 아직 없습니다. 테스트 추가 시 별도 xUnit/NUnit 프로젝트를 만들고 `.slnx`에 등록해야 합니다.
 - Windows가 아닌 환경에서 빌드만 하려면 `EnableWindowsTargeting`이 이미 켜져 있어 `dotnet build`는 통과하지만 실행은 불가합니다.
 
