@@ -68,7 +68,7 @@ dotnet run --project NovelWriter.Wpf      # 실행 (Windows에서만 동작)
 - **문자 오프셋 통일**: 문단/줄바꿈을 모두 `\n` 1글자로 취급(`RichTextBoxHelpers`의 GetPlainText/GetPointerAtOffset/GetOffset). `StatisticsService`도 `\n` 기준. 오타 `TypoMark`의 offset과 어도너·우클릭·`VisibleRangeResolver`(`GetPositionFromPoint`→`GetOffset`)가 이 규칙을 공유합니다.
 - **서식 툴바**(두 번째 툴바 행, 코드비하인드 이벤트): 글꼴/크기 ComboBox, 굵게·기울임·밑줄 토글(`Selection.ApplyPropertyValue`), 글자색·하이라이트(`ShowColorMenu` 팔레트 ContextMenu → Foreground/Background), 서식 지우기(`ClearAllProperties`).
 - **DOCX 서식 저장**: `.docx`로 저장/내보내기 시 `DocxDocumentSaver` 콜백(View)이 `DocxExportService.ExportFlowDocumentAsync`로 **RichTextBox FlowDocument → DOCX 서식**(굵게·기울임·밑줄·글자색·크기·하이라이트)을 매핑해 저장합니다. WPF FontSize(px)는 `sz`(하프포인트) = `px*1.5`로 변환. txt/md는 평문 저장.
-- **참고자료 생성기**(메뉴 "참고자료 생성기" → `ReferenceGeneratorWindow`/`ReferenceGeneratorViewModel`): 유형(캐릭터/세계관/시놉시스 등) + 요청으로 `ChatService`가 **마크다운(.md)** 생성 → 편집 후 `.md` 저장. 저장 후 참고자료 서랍을 새로고침합니다.
+- **참고자료 생성기**(메뉴 "참고자료 생성기" → `ReferenceGeneratorWindow`/`ReferenceGeneratorViewModel`): 유형(캐릭터/세계관/시놉시스 등) + 요청으로 `ChatService`가 **마크다운(.md)** 생성 → 편집 후 `.md` 저장. 저장 후 참고자료 서랍을 새로고침합니다. 유형에 "묘사·표현 모음/감정·심리 묘사/배경·풍경 묘사/대사·문장 모음"이 있고, 이 계열은 `BuildSystemPrompt`가 **소설 문장 특화 프롬프트**(참신한 묘사·표현을 바로 쓸 수 있는 문장으로)로 전환합니다.
 
 ### 데이터/설정 경로
 
