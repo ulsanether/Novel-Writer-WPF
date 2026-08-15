@@ -13,6 +13,15 @@ public partial class StoryCharacter : ObservableObject
     [ObservableProperty] private string _goal = string.Empty;
     [ObservableProperty] private string _secret = string.Empty;
     [ObservableProperty] private string _relationships = string.Empty;
+
+    /// <summary>이미지 생성용 외형 프롬프트(영어)입니다. 씬 삽화 일관성에 재사용됩니다.</summary>
+    [ObservableProperty] private string _appearancePrompt = string.Empty;
+
+    /// <summary>캐릭터 대표 레퍼런스 이미지 경로입니다.</summary>
+    [ObservableProperty] private string _referenceImagePath = string.Empty;
+
+    /// <summary>캐릭터 고정 시드입니다.</summary>
+    [ObservableProperty] private long _imageSeed = -1;
 }
 
 /// <summary>
@@ -29,6 +38,15 @@ public partial class SceneNode : ObservableObject
     [ObservableProperty] private string _result = string.Empty;
     [ObservableProperty] private string _nextLink = string.Empty;
     [ObservableProperty] private string _content = string.Empty;
+
+    /// <summary>씬 삽화 이미지 경로입니다.</summary>
+    [ObservableProperty] private string _illustrationPath = string.Empty;
+
+    /// <summary>씬 삽화 생성 프롬프트(영어)입니다.</summary>
+    [ObservableProperty] private string _illustrationPrompt = string.Empty;
+
+    /// <summary>씬 삽화 시드입니다.</summary>
+    [ObservableProperty] private long _illustrationSeed = -1;
 }
 
 /// <summary>
@@ -72,6 +90,9 @@ public partial class StoryProject : ObservableObject
 
     /// <summary>생성 시 참조할 참고자료 메모(인물·배경 묘사 등)입니다.</summary>
     [ObservableProperty] private string _referenceNotes = string.Empty;
+
+    /// <summary>모든 이미지에 공통 적용할 화풍 프리픽스(영어)입니다.</summary>
+    [ObservableProperty] private string _imageStylePrefix = "storybook illustration, soft lighting, detailed";
 
     // ── 장/Scene ──
     /// <summary>장 목록입니다.</summary>

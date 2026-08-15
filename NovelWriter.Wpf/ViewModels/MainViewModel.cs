@@ -23,6 +23,9 @@ public partial class MainViewModel : ObservableObject
     private readonly TypoCorrectionService _typoCorrectionService;
     private readonly OllamaService _ollamaService;
     private readonly ChatService _chatService;
+    private readonly ImageServiceRouter _imageService;
+    private readonly ImageSetupService _imageSetupService;
+    private readonly ComfyUiSetupService _comfyUiSetupService;
     private readonly HunspellSpellCheckService _hunspellService;
     private readonly UserDictionaryService _userDictionaryService;
     private readonly ReferenceLibraryService _referenceLibraryService;
@@ -61,6 +64,287 @@ public partial class MainViewModel : ObservableObject
 
     /// <summary>참고자료 폴더 경로입니다. (스토리 플래너/생성기 연동용)</summary>
     public string ReferenceFolderPath => _referenceFolder;
+
+    // ── 이미지 생성 서버 설정/설치 ──
+
+    /// <summary>ComfyUI 백엔드를 사용하는지 여부입니다. (false면 A1111)</summary>
+    [ObservableProperty]
+    private bool _useComfyUi;
+
+    [ObservableProperty]
+    private string _imageBaseUrl = "http://127.0.0.1:7860";
+
+    [ObservableProperty]
+    private string _imageWebUiPath = string.Empty;
+
+    [ObservableProperty]
+    private string _comfyUiBaseUrl = "http://127.0.0.1:8188";
+
+    [ObservableProperty]
+    private string _comfyUiPath = string.Empty;
+
+    /// <summary>ComfyUI 추천 모델 목록입니다.</summary>
+    public IReadOnlyList<ComfyUiSetupService.ComfyModel> ComfyModels => ComfyUiSetupService.RecommendedModels;
+
+    /// <summary>다운로드할 ComfyUI 모델 선택입니다.</summary>
+    [ObservableProperty]
+    private ComfyUiSetupService.ComfyModel? _selectedComfyModel = ComfyUiSetupService.RecommendedModels[0];
+
+    /// <summary>하드웨어(VRAM) 프로파일 목록입니다.</summary>
+    public IReadOnlyList<HardwareProfile> HardwareProfiles { get; } = new[]
+    {
+        new HardwareProfile("Auto", "자동 (권장)", "", "", "VRAM에 맞춰 자동 관리합니다."),
+        new HardwareProfile("High", "고사양 · 12GB 이상", "--highvram", "", "최대 속도로 실행합니다."),
+        new HardwareProfile("Medium", "중간 · 8GB", "--normalvram", "--medvram", "균형(8GB 권장)."),
+        new HardwareProfile("Low", "저사양 · 6GB 이하", "--lowvram", "--lowvram", "VRAM을 아끼지만 느립니다."),
+        new HardwareProfile("Cpu", "GPU 없음 (CPU만)", "--cpu", "--use-cpu all --skip-torch-cuda-test", "그래픽카드 없이 실행(매우 느림).")
+    };
+
+    /// <summary>선택한 하드웨어 프로파일입니다.</summary>
+    [ObservableProperty]
+    private HardwareProfile _selectedHardware;
+
+    [ObservableProperty]
+    private string _imageServerStatus = "확인되지 않음";
+
+    [ObservableProperty]
+    private string _imageSetupLog = string.Empty;
+
+    [ObservableProperty]
+    private bool _isImageSetupBusy;
+
+    /// <summary>이미지 서버 설치 폴더 선택 콜백입니다.</summary>
+    public Func<Task<string?>>? ImageInstallFolderResolver { get; set; }
+
+    partial void OnImageBaseUrlChanged(string value) => _imageService.A1111.BaseUrl = value;
+
+    partial void OnComfyUiBaseUrlChanged(string value) => _imageService.Comfy.BaseUrl = value;
+
+    partial void OnUseComfyUiChanged(bool value)
+        => _imageService.Backend = value ? ImageBackendKind.ComfyUi : ImageBackendKind.A1111;
+
+    /// <summary>
+    /// 현재 선택된 백엔드의 연결을 확인합니다.
+    /// </summary>
+    [RelayCommand]
+    private async Task TestImageServerAsync()
+    {
+        _imageService.A1111.BaseUrl = ImageBaseUrl;
+        _imageService.Comfy.BaseUrl = ComfyUiBaseUrl;
+        _imageService.Backend = UseComfyUi ? ImageBackendKind.ComfyUi : ImageBackendKind.A1111;
+
+        ImageServerStatus = "확인 중...";
+        var running = await _imageService.IsRunningAsync();
+        var name = UseComfyUi ? "ComfyUI" : "A1111";
+        ImageServerStatus = running ? $"✅ {name} 실행 중 (연결됨)" : $"❌ {name} 응답 없음 (설치·실행 필요)";
+    }
+
+    /// <summary>
+    /// A1111 SD WebUI를 자동으로 내려받아 설치합니다. (Python·git 자동 설치)
+    /// </summary>
+    [RelayCommand]
+    private async Task InstallImageServerAsync()
+    {
+        if (ImageInstallFolderResolver is null || IsImageSetupBusy)
+        {
+            return;
+        }
+
+        var folder = await ImageInstallFolderResolver();
+        if (string.IsNullOrWhiteSpace(folder))
+        {
+            return;
+        }
+
+        IsImageSetupBusy = true;
+        ImageSetupLog = string.Empty;
+        var progress = new Progress<string>(line => ImageSetupLog += line + "\n");
+
+        try
+        {
+            var ok = await _imageSetupService.InstallAsync(folder, progress);
+            if (ok)
+            {
+                ImageWebUiPath = System.IO.Path.Combine(folder, "stable-diffusion-webui");
+                await PersistSettingsAsync();
+            }
+        }
+        finally
+        {
+            IsImageSetupBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// ComfyUI 포터블을 자동으로 내려받아 설치합니다. (Python 불필요, 7-Zip 자동 설치)
+    /// </summary>
+    [RelayCommand]
+    private async Task InstallComfyUiAsync()
+    {
+        if (ImageInstallFolderResolver is null || IsImageSetupBusy)
+        {
+            return;
+        }
+
+        var folder = await ImageInstallFolderResolver();
+        if (string.IsNullOrWhiteSpace(folder))
+        {
+            return;
+        }
+
+        IsImageSetupBusy = true;
+        ImageSetupLog = string.Empty;
+        var progress = new Progress<string>(line => ImageSetupLog += line + "\n");
+
+        try
+        {
+            var ok = await _comfyUiSetupService.InstallAsync(folder, progress);
+            if (ok)
+            {
+                ComfyUiPath = folder;
+                UseComfyUi = true;
+                await PersistSettingsAsync();
+            }
+        }
+        finally
+        {
+            IsImageSetupBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// 선택된 백엔드 서버를 실행합니다. (첫 실행 시 필요한 파일 자동 다운로드)
+    /// </summary>
+    [RelayCommand]
+    private void LaunchImageServer()
+    {
+        var hw = SelectedHardware ?? HardwareProfiles[0];
+
+        if (UseComfyUi)
+        {
+            if (!_comfyUiSetupService.IsInstalled(ComfyUiPath))
+            {
+                ImageSetupLog += "설치된 ComfyUI 경로가 없습니다. 먼저 설치하거나 폴더를 지정하세요.\n";
+                return;
+            }
+
+            var okC = _comfyUiSetupService.Launch(ComfyUiPath, hw.ComfyArgs);
+            ImageSetupLog += okC ? $"ComfyUI를 실행했습니다({hw.DisplayName}). 콘솔 창에서 준비가 끝나면 [연결 확인]을 눌러주세요.\n" : "실행에 실패했습니다.\n";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(ImageWebUiPath) || !_imageSetupService.IsInstalled(ImageWebUiPath))
+        {
+            ImageSetupLog += "설치된 WebUI 경로가 없습니다. 먼저 설치하거나 폴더를 지정하세요.\n";
+            return;
+        }
+
+        _imageSetupService.EnsureApiFlag(ImageWebUiPath);
+        _imageSetupService.EnsureExtraArgs(ImageWebUiPath, hw.A1111Args);
+        var ok = _imageSetupService.Launch(ImageWebUiPath);
+        ImageSetupLog += ok ? "WebUI를 실행했습니다. 콘솔 창에서 준비가 끝나면 [연결 확인]을 눌러주세요.\n" : "실행에 실패했습니다.\n";
+    }
+
+    /// <summary>
+    /// ComfyUI 체크포인트(모델) 폴더를 탐색기로 엽니다.
+    /// </summary>
+    [RelayCommand]
+    private void OpenComfyModelsFolder()
+    {
+        var path = _comfyUiSetupService.GetCheckpointsFolder(ComfyUiPath);
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            ImageSetupLog += "먼저 ComfyUI를 설치하세요.\n";
+            return;
+        }
+
+        try
+        {
+            System.IO.Directory.CreateDirectory(path);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // 무시
+        }
+    }
+
+    /// <summary>
+    /// 선택한 추천 모델을 ComfyUI 체크포인트 폴더로 내려받고, 그 모델의 권장 설정을 적용합니다.
+    /// </summary>
+    [RelayCommand]
+    private async Task DownloadComfyModelAsync()
+    {
+        if (SelectedComfyModel is null || IsImageSetupBusy)
+        {
+            return;
+        }
+
+        if (!_comfyUiSetupService.IsInstalled(ComfyUiPath))
+        {
+            ImageSetupLog += "먼저 ComfyUI를 설치하세요.\n";
+            return;
+        }
+
+        IsImageSetupBusy = true;
+        ImageSetupLog = string.Empty;
+        var progress = new Progress<string>(line => ImageSetupLog += line + "\n");
+        var model = SelectedComfyModel;
+
+        try
+        {
+            var ok = await _comfyUiSetupService.DownloadModelAsync(ComfyUiPath, model, progress);
+            if (ok)
+            {
+                ApplyComfyModel(model);
+                UseComfyUi = true;
+                await PersistSettingsAsync();
+            }
+        }
+        finally
+        {
+            IsImageSetupBusy = false;
+        }
+    }
+
+    // 모델의 파일명과 권장 샘플링 설정을 ComfyUI 백엔드에 적용합니다.
+    private void ApplyComfyModel(ComfyUiSetupService.ComfyModel model)
+    {
+        var comfy = _imageService.Comfy;
+        comfy.CheckpointName = model.FileName;
+        comfy.Steps = model.Steps;
+        comfy.CfgScale = model.Cfg;
+        comfy.Sampler = model.Sampler;
+        comfy.Scheduler = model.Scheduler;
+        comfy.Width = model.Width;
+        comfy.Height = model.Height;
+    }
+
+    /// <summary>
+    /// 선택된 백엔드의 설치/모델 안내 페이지를 엽니다.
+    /// </summary>
+    [RelayCommand]
+    private void OpenImageServerPage()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = UseComfyUi
+                    ? "https://github.com/comfyanonymous/ComfyUI#installing"
+                    : "https://github.com/AUTOMATIC1111/stable-diffusion-webui#installation-and-running",
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // 무시
+        }
+    }
 
     [ObservableProperty]
     private ReferenceDocument? _selectedReference;
@@ -123,6 +407,9 @@ public partial class MainViewModel : ObservableObject
         TypoCorrectionService typoCorrectionService,
         OllamaService ollamaService,
         ChatService chatService,
+        ImageServiceRouter imageService,
+        ImageSetupService imageSetupService,
+        ComfyUiSetupService comfyUiSetupService,
         HunspellSpellCheckService hunspellService,
         UserDictionaryService userDictionaryService,
         ReferenceLibraryService referenceLibraryService,
@@ -138,6 +425,10 @@ public partial class MainViewModel : ObservableObject
         _typoCorrectionService = typoCorrectionService;
         _ollamaService = ollamaService;
         _chatService = chatService;
+        _imageService = imageService;
+        _imageSetupService = imageSetupService;
+        _comfyUiSetupService = comfyUiSetupService;
+        _selectedHardware = HardwareProfiles[0];
         _hunspellService = hunspellService;
         _userDictionaryService = userDictionaryService;
         _referenceLibraryService = referenceLibraryService;
@@ -1692,7 +1983,14 @@ public partial class MainViewModel : ObservableObject
             EditorFontSize = EditorFontSize,
             EditorFontFamily = EditorFontFamilyName,
             BackgroundImagePath = BackgroundImagePath,
-            BackgroundOpacity = BackgroundOpacity
+            BackgroundOpacity = BackgroundOpacity,
+            ImageBaseUrl = ImageBaseUrl,
+            ImageWebUiPath = ImageWebUiPath,
+            ImageBackend = UseComfyUi ? "ComfyUI" : "A1111",
+            ComfyUiBaseUrl = ComfyUiBaseUrl,
+            ComfyUiPath = ComfyUiPath,
+            ComfyUiCheckpoint = _imageService.Comfy.CheckpointName,
+            ImageHardware = (SelectedHardware ?? HardwareProfiles[0]).Key
         });
     }
 
@@ -1726,6 +2024,27 @@ public partial class MainViewModel : ObservableObject
         _chatService.Model = AiModel;
         _chatService.BaseUrl = _aiBaseUrl;
         _ollamaService.BaseUrl = ToOllamaNativeUrl(_aiBaseUrl);
+        ImageBaseUrl = string.IsNullOrWhiteSpace(settings.ImageBaseUrl) ? "http://127.0.0.1:7860" : settings.ImageBaseUrl;
+        ImageWebUiPath = settings.ImageWebUiPath ?? string.Empty;
+        ComfyUiBaseUrl = string.IsNullOrWhiteSpace(settings.ComfyUiBaseUrl) ? "http://127.0.0.1:8188" : settings.ComfyUiBaseUrl;
+        ComfyUiPath = settings.ComfyUiPath ?? string.Empty;
+        UseComfyUi = string.Equals(settings.ImageBackend, "ComfyUI", StringComparison.OrdinalIgnoreCase);
+        SelectedHardware = HardwareProfiles.FirstOrDefault(h => string.Equals(h.Key, settings.ImageHardware, StringComparison.OrdinalIgnoreCase)) ?? HardwareProfiles[0];
+        _imageService.A1111.BaseUrl = ImageBaseUrl;
+        _imageService.Comfy.BaseUrl = ComfyUiBaseUrl;
+        _imageService.Backend = UseComfyUi ? ImageBackendKind.ComfyUi : ImageBackendKind.A1111;
+        if (!string.IsNullOrWhiteSpace(settings.ComfyUiCheckpoint))
+        {
+            _imageService.Comfy.CheckpointName = settings.ComfyUiCheckpoint;
+            // 저장된 체크포인트가 추천 모델이면 권장 샘플링 설정도 복원합니다.
+            var known = ComfyUiSetupService.RecommendedModels
+                .FirstOrDefault(m => string.Equals(m.FileName, settings.ComfyUiCheckpoint, StringComparison.OrdinalIgnoreCase));
+            if (known is not null)
+            {
+                ApplyComfyModel(known);
+                SelectedComfyModel = known;
+            }
+        }
         _referenceFolder = settings.ReferenceFolder ?? string.Empty;
         RaiseLocalizedPropertiesChanged();
     }

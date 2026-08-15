@@ -2,6 +2,7 @@
     x:Class="NovelWriter.Wpf.StoryPlannerWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:NovelWriter.Wpf"
     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
     xmlns:models="clr-namespace:NovelWriter.Wpf.Models"
     Title="스토리 플래너"
@@ -12,6 +13,7 @@
     WindowStartupLocation="CenterOwner">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <local:PathToImageConverter x:Key="PathToImage" />
     </Window.Resources>
 
     <Grid Margin="10">
@@ -129,6 +131,14 @@
                                             ToolTip="참고자료(.md)로 내보내기">
                                             <materialDesign:PackIcon Kind="FileExportOutline" />
                                         </Button>
+                                        <Button
+                                            Command="{Binding DataContext.GenerateCharacterImageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}"
+                                            DockPanel.Dock="Right"
+                                            Style="{StaticResource MaterialDesignToolButton}"
+                                            ToolTip="캐릭터 이미지 생성">
+                                            <materialDesign:PackIcon Kind="ImagePlusOutline" />
+                                        </Button>
                                         <TextBox materialDesign:HintAssist.Hint="이름" Text="{Binding Name}" />
                                     </DockPanel>
                                     <TextBox
@@ -147,6 +157,12 @@
                                         Margin="0,4,0,0"
                                         materialDesign:HintAssist.Hint="관계"
                                         Text="{Binding Relationships}" />
+                                    <Image
+                                        MaxHeight="140"
+                                        Margin="0,6,0,0"
+                                        HorizontalAlignment="Left"
+                                        Source="{Binding ReferenceImagePath, Converter={StaticResource PathToImage}}"
+                                        Stretch="Uniform" />
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
@@ -448,6 +464,30 @@
                             Text="{Binding SelectedScene.Content}"
                             TextWrapping="Wrap"
                             VerticalScrollBarVisibility="Auto" />
+
+                        <!--  씬 삽화 (이미지 생성) — 등장인물 외형 자동 반영  -->
+                        <Separator Margin="0,12,0,8" />
+                        <TextBlock Margin="0,0,0,6" FontWeight="Bold" Text="🖼 삽화 (이미지 생성)" />
+                        <TextBox
+                            MinHeight="44"
+                            Margin="0,0,0,6"
+                            materialDesign:HintAssist.Hint="이미지 프롬프트(영어, 비우면 자동 생성)"
+                            AcceptsReturn="True"
+                            Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                            Text="{Binding SelectedScene.IllustrationPrompt}"
+                            TextWrapping="Wrap" />
+                        <Button
+                            Margin="0,0,0,8"
+                            HorizontalAlignment="Left"
+                            Command="{Binding GenerateSceneImageCommand}"
+                            Content="삽화 생성"
+                            Style="{StaticResource MaterialDesignRaisedButton}" />
+                        <Image
+                            MaxHeight="340"
+                            Margin="0,4"
+                            HorizontalAlignment="Left"
+                            Source="{Binding SelectedScene.IllustrationPath, Converter={StaticResource PathToImage}}"
+                            Stretch="Uniform" />
                     </StackPanel>
                 </StackPanel>
             </Grid>

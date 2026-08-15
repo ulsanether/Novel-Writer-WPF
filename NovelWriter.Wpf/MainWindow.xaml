@@ -347,6 +347,7 @@
                         </MenuItem>
                         <MenuItem Click="OnOpenStoryPlanner" Header="스토리 플래너" />
                         <MenuItem Click="OnOpenReferenceGenerator" Header="참고자료 생성기" />
+                        <MenuItem Click="OnOpenImageServer" Header="이미지 서버 설정" />
                         <MenuItem Click="OnOpenSettings" Header="{Binding SettingsMenuText}" />
                     </Menu>
 

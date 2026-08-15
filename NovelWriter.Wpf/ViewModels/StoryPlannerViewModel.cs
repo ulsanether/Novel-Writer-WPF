@@ -15,6 +15,7 @@ public partial class StoryPlannerViewModel : ObservableObject
     private readonly StoryProjectService _projectService;
     private readonly StoryPlannerService _plannerService;
     private readonly ReferenceLibraryService _referenceLibraryService;
+    private readonly IImageBackend _imageGenService;
     private readonly string _referenceFolder;
 
     /// <summary>
@@ -42,12 +43,14 @@ public partial class StoryPlannerViewModel : ObservableObject
         StoryProjectService projectService,
         StoryPlannerService plannerService,
         ReferenceLibraryService referenceLibraryService,
+        IImageBackend imageGenService,
         string referenceFolder)
     {
         _project = project;
         _projectService = projectService;
         _plannerService = plannerService;
         _referenceLibraryService = referenceLibraryService;
+        _imageGenService = imageGenService;
         _referenceFolder = referenceFolder ?? string.Empty;
         LoadReferences();
     }
@@ -250,6 +253,108 @@ public partial class StoryPlannerViewModel : ObservableObject
         }
 
         return name.Trim();
+    }
+
+    // ── 이미지 생성 (삽화) ──
+
+    /// <summary>
+    /// 캐릭터의 외형 프롬프트를 만들고 레퍼런스 이미지를 생성합니다.
+    /// </summary>
+    [RelayCommand]
+    private async Task GenerateCharacterImageAsync(StoryCharacter? character)
+    {
+        if (character is null)
+        {
+            return;
+        }
+
+        await RunAsync($"'{character.Name}' 캐릭터 이미지를 생성하는 중...", async () =>
+        {
+            // 외형 프롬프트가 없으면 먼저 생성(캐릭터 → 씬 삽화 일관성의 기준)
+            if (string.IsNullOrWhiteSpace(character.AppearancePrompt))
+            {
+                var prompt = await _plannerService.GenerateCharacterImagePromptAsync(Project, character);
+                if (!string.IsNullOrWhiteSpace(prompt))
+                {
+                    character.AppearancePrompt = prompt.Trim();
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(character.AppearancePrompt))
+            {
+                StatusMessage = "외형 프롬프트 생성에 실패했습니다. (Ollama 확인)";
+                return;
+            }
+
+            var fullPrompt = $"{Project.ImageStylePrefix}, character reference sheet, full body, {character.AppearancePrompt}";
+            var result = await _imageGenService.GenerateAsync(fullPrompt, character.ImageSeed);
+            if (result is null)
+            {
+                StatusMessage = "이미지 생성에 실패했습니다. 이미지 서버(SD WebUI, :7860)가 실행 중인지 확인하세요.";
+                return;
+            }
+
+            character.ImageSeed = result.Seed;
+            character.ReferenceImagePath = SaveImage("Characters/Sheets", character.Name, result.ImageBytes);
+        });
+    }
+
+    /// <summary>
+    /// 선택한 씬의 삽화를 생성합니다. (등장인물 외형 자동 반영)
+    /// </summary>
+    [RelayCommand]
+    private async Task GenerateSceneImageAsync()
+    {
+        if (SelectedChapter is null || SelectedScene is null)
+        {
+            return;
+        }
+
+        var chapter = SelectedChapter;
+        var scene = SelectedScene;
+
+        await RunAsync($"'{scene.Title}' 삽화를 생성하는 중...", async () =>
+        {
+            if (string.IsNullOrWhiteSpace(scene.IllustrationPrompt))
+            {
+                var prompt = await _plannerService.GenerateSceneImagePromptAsync(Project, chapter, scene);
+                if (!string.IsNullOrWhiteSpace(prompt))
+                {
+                    scene.IllustrationPrompt = prompt.Trim();
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(scene.IllustrationPrompt))
+            {
+                StatusMessage = "삽화 프롬프트 생성에 실패했습니다. (Ollama 확인)";
+                return;
+            }
+
+            var fullPrompt = $"{Project.ImageStylePrefix}, {scene.IllustrationPrompt}";
+            var result = await _imageGenService.GenerateAsync(fullPrompt, scene.IllustrationSeed);
+            if (result is null)
+            {
+                StatusMessage = "이미지 생성에 실패했습니다. 이미지 서버(SD WebUI, :7860)가 실행 중인지 확인하세요.";
+                return;
+            }
+
+            scene.IllustrationSeed = result.Seed;
+            scene.IllustrationPath = SaveImage("Illustrations", $"{chapter.Title}_{scene.Title}", result.ImageBytes);
+        });
+    }
+
+    private string SaveImage(string subDirectory, string name, byte[] bytes)
+    {
+        var baseDir = !string.IsNullOrWhiteSpace(_referenceFolder) && Directory.Exists(_referenceFolder)
+            ? _referenceFolder
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NovelWriter");
+
+        var directory = Path.Combine(baseDir, subDirectory.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(directory);
+
+        var file = Path.Combine(directory, MakeSafeFileName(name) + ".png");
+        File.WriteAllBytes(file, bytes);
+        return file;
     }
 
     // ── 원고 역분석 (원고 → 설계) ──

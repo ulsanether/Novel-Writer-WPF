@@ -26,6 +26,7 @@ public partial class MainWindow : Window
     private readonly StoryProjectService _storyProjectService;
     private readonly StoryPlannerService _storyPlannerService;
     private readonly ChatService _chatService;
+    private readonly ImageServiceRouter _imageService = new();
 
     /// <summary>
     /// 메인 윈도우를 초기화합니다.
@@ -52,6 +53,8 @@ public partial class MainWindow : Window
         var localizationService = new LocalizationService();
         var themeService = new ThemeService();
         var settingsService = new SettingsService(appData);
+        var imageSetupService = new ImageSetupService();
+        var comfyUiSetupService = new ComfyUiSetupService();
 
         _viewModel = new MainViewModel(
             repository,
@@ -61,6 +64,9 @@ public partial class MainWindow : Window
             typoCorrectionService,
             ollamaService,
             chatService,
+            _imageService,
+            imageSetupService,
+            comfyUiSetupService,
             hunspellService,
             userDictionaryService,
             referenceLibraryService,
@@ -73,6 +79,11 @@ public partial class MainWindow : Window
         _viewModel.ExportPathResolver = ResolveExportPathAsync;
         _viewModel.SaveAsPathResolver = ResolveSaveAsPathAsync;
         _viewModel.ReferenceFolderResolver = ResolveReferenceFolderAsync;
+        _viewModel.ImageInstallFolderResolver = () =>
+        {
+            var dialog = new OpenFolderDialog { Title = "이미지 서버를 설치할 폴더 선택" };
+            return Task.FromResult(dialog.ShowDialog(this) == true ? dialog.FolderName : null);
+        };
         _viewModel.BackgroundImageResolver = () =>
         {
             var dialog = new OpenFileDialog
@@ -354,6 +365,12 @@ public partial class MainWindow : Window
         window.ShowDialog();
     }
 
+    private void OnOpenImageServer(object sender, RoutedEventArgs e)
+    {
+        var window = new ImageServerWindow(_viewModel) { Owner = this };
+        window.ShowDialog();
+    }
+
     private void OnOpenReferenceGenerator(object sender, RoutedEventArgs e)
     {
         var viewModel = new ReferenceGeneratorViewModel(_chatService)
@@ -409,7 +426,7 @@ public partial class MainWindow : Window
         var project = _storyProjectService.Load();
         var viewModel = new StoryPlannerViewModel(
             project, _storyProjectService, _storyPlannerService,
-            new ReferenceLibraryService(), _viewModel.ReferenceFolderPath)
+            new ReferenceLibraryService(), _imageService, _viewModel.ReferenceFolderPath)
         {
             InsertToEditor = text =>
             {

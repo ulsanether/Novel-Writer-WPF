@@ -263,6 +263,54 @@ public sealed class StoryPlannerService
         }));
     }
 
+    // ────────────────────────── 이미지 프롬프트 생성 (영어 · SD용) ──────────────────────────
+
+    /// <summary>
+    /// 캐릭터 정보에서 이미지 생성용 영어 외형 프롬프트를 만듭니다. (캐릭터 시트/레퍼런스용)
+    /// </summary>
+    public async Task<string?> GenerateCharacterImagePromptAsync(StoryProject project, StoryCharacter character)
+    {
+        const string system =
+            "You are a prompt engineer for Stable Diffusion. Output ONLY a concise English image prompt as comma-separated tags "
+            + "(age, gender, hair color/style, eye color, body build, clothing, distinctive features). "
+            + "No sentences, no explanation, no quotes.";
+        var user =
+            $"Character:\nname: {character.Name}\npersonality: {character.Personality}\ngoal: {character.Goal}\nrelationships: {character.Relationships}\n"
+            + $"Genre: {project.Genre}, Era: {project.Era}, World: {project.World}\n"
+            + "Create an English appearance prompt for a full-body character reference (turnaround/character sheet).";
+
+        return await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });
+    }
+
+    /// <summary>
+    /// 씬 정보 + 등장인물 외형 + 화풍을 결합한 영어 삽화 프롬프트를 만듭니다.
+    /// </summary>
+    public async Task<string?> GenerateSceneImagePromptAsync(StoryProject project, ChapterNode chapter, SceneNode scene)
+    {
+        // 씬에 등장하는 인물의 외형 프롬프트(AppearancePrompt)를 모읍니다. (캐릭터 연동 · 일관성)
+        var appearances = new StringBuilder();
+        foreach (var c in project.Characters)
+        {
+            if (!string.IsNullOrWhiteSpace(c.Name)
+                && !string.IsNullOrWhiteSpace(c.AppearancePrompt)
+                && scene.Characters.Contains(c.Name, StringComparison.Ordinal))
+            {
+                appearances.AppendLine($"{c.Name}: {c.AppearancePrompt}");
+            }
+        }
+
+        const string system =
+            "You are a prompt engineer for Stable Diffusion. Output ONLY a concise English image prompt as comma-separated tags. "
+            + "No sentences, no explanation, no quotes.";
+        var user =
+            $"Scene:\nlocation: {scene.Location}\ncharacters: {scene.Characters}\nsituation: {scene.Summary}\nmood/conflict: {scene.Conflict}\n\n"
+            + (appearances.Length > 0 ? $"Character appearances (keep consistent):\n{appearances}\n" : string.Empty)
+            + $"Genre: {project.Genre}, Era: {project.Era}, World: {project.World}\n"
+            + "Create an English illustration prompt for this scene, keeping the given character appearances consistent.";
+
+        return await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });
+    }
+
     // ────────────────────────── 원고 역분석 (원고 → 설계) ──────────────────────────
 
     /// <summary>

@@ -104,4 +104,39 @@ public sealed class AppSettings
     /// 배경 이미지 투명도(0~1)를 가져오거나 설정합니다.
     /// </summary>
     public double BackgroundOpacity { get; set; } = 0.3;
+
+    /// <summary>
+    /// 이미지 생성 서버(SD WebUI) 주소를 가져오거나 설정합니다.
+    /// </summary>
+    public string ImageBaseUrl { get; set; } = "http://127.0.0.1:7860";
+
+    /// <summary>
+    /// 이미지 생성 WebUI(A1111) 설치 폴더 경로를 가져오거나 설정합니다.
+    /// </summary>
+    public string ImageWebUiPath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 이미지 생성 백엔드를 가져오거나 설정합니다. ("A1111" 또는 "ComfyUI")
+    /// </summary>
+    public string ImageBackend { get; set; } = "A1111";
+
+    /// <summary>
+    /// ComfyUI 서버 주소를 가져오거나 설정합니다.
+    /// </summary>
+    public string ComfyUiBaseUrl { get; set; } = "http://127.0.0.1:8188";
+
+    /// <summary>
+    /// ComfyUI 포터블 설치 폴더 경로를 가져오거나 설정합니다.
+    /// </summary>
+    public string ComfyUiPath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// ComfyUI에서 사용할 체크포인트(모델) 파일명을 가져오거나 설정합니다.
+    /// </summary>
+    public string ComfyUiCheckpoint { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 이미지 서버 실행에 사용할 하드웨어 프로파일 키를 가져오거나 설정합니다. (Auto/High/Medium/Low/Cpu)
+    /// </summary>
+    public string ImageHardware { get; set; } = "Auto";
 }
