@@ -26,6 +26,9 @@ public partial class StoryPlannerViewModel : ObservableObject
     /// <summary>생성 이미지를 메인 에디터 본문에 삽입하는 콜백입니다. (경로)</summary>
     public Action<string>? InsertImageToEditor { get; set; }
 
+    /// <summary>생성 직전 화풍 설정 팝업을 띄우는 콜백입니다. (true=생성 진행, false=취소)</summary>
+    public Func<bool>? ConfirmStyleBeforeGenerate { get; set; }
+
     /// <summary>"다른 이름으로 저장" 경로 선택 콜백입니다.</summary>
     public Func<Task<string?>>? SaveAsPathResolver { get; set; }
 
@@ -358,6 +361,12 @@ public partial class StoryPlannerViewModel : ObservableObject
             return;
         }
 
+        // 생성 전 화풍 설정 팝업 (취소 시 생성 안 함)
+        if (ConfirmStyleBeforeGenerate is not null && !ConfirmStyleBeforeGenerate())
+        {
+            return;
+        }
+
         await RunAsync($"'{character.Name}' 캐릭터 이미지를 생성하는 중...", async () =>
         {
             // 외형 프롬프트가 없으면 먼저 생성(캐릭터 → 씬 삽화 일관성의 기준)
@@ -403,6 +412,12 @@ public partial class StoryPlannerViewModel : ObservableObject
     private async Task GenerateSceneImageAsync()
     {
         if (SelectedChapter is null || SelectedScene is null)
+        {
+            return;
+        }
+
+        // 생성 전 화풍 설정 팝업 (취소 시 생성 안 함)
+        if (ConfirmStyleBeforeGenerate is not null && !ConfirmStyleBeforeGenerate())
         {
             return;
         }

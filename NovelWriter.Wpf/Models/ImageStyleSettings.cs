@@ -24,6 +24,37 @@ public sealed class ImageStyleSettings
     /// <summary>사용자가 추가로 제외할(부정) 프롬프트입니다.</summary>
     public string ExtraNegative { get; set; } = string.Empty;
 
+    // ── 세부(구도·카메라·분위기·환경) ──
+
+    /// <summary>촬영 범위(샷) 라벨입니다.</summary>
+    public string Shot { get; set; } = "자동";
+
+    /// <summary>카메라 각도 라벨입니다.</summary>
+    public string CameraAngle { get; set; } = "자동";
+
+    /// <summary>분위기 라벨입니다.</summary>
+    public string Mood { get; set; } = "없음";
+
+    /// <summary>배경 라벨입니다.</summary>
+    public string Background { get; set; } = "자동";
+
+    /// <summary>시간대 라벨입니다.</summary>
+    public string TimeOfDay { get; set; } = "자동";
+
+    /// <summary>콘텐츠 이용 등급 라벨입니다. (등장인물 연령과 별개)</summary>
+    public string ContentRating { get; set; } = "전체 이용가";
+
+    // ── 핵심 슬라이더(0~100) ──
+
+    /// <summary>현실감입니다. (0 스타일화 ~ 100 실사)</summary>
+    public int Realism { get; set; } = 50;
+
+    /// <summary>디테일입니다. (0 단순 ~ 100 정교)</summary>
+    public int Detail { get; set; } = 60;
+
+    /// <summary>배경 복잡도입니다. (0 미니멀 ~ 100 복잡)</summary>
+    public int BackgroundComplexity { get; set; } = 50;
+
     /// <summary>얕은 복사본을 만듭니다.</summary>
     public ImageStyleSettings Clone() => new()
     {
@@ -32,7 +63,16 @@ public sealed class ImageStyleSettings
         Lighting = Lighting,
         ColorMood = ColorMood,
         ExtraPositive = ExtraPositive,
-        ExtraNegative = ExtraNegative
+        ExtraNegative = ExtraNegative,
+        Shot = Shot,
+        CameraAngle = CameraAngle,
+        Mood = Mood,
+        Background = Background,
+        TimeOfDay = TimeOfDay,
+        ContentRating = ContentRating,
+        Realism = Realism,
+        Detail = Detail,
+        BackgroundComplexity = BackgroundComplexity
     };
 }
 
@@ -110,6 +150,90 @@ public static class ImageStyleCatalog
     /// <summary>색감 라벨 목록입니다.</summary>
     public static IReadOnlyList<string> ColorMoodLabels { get; } = ColorMoods.Select(p => p.Label).ToArray();
 
+    /// <summary>촬영 범위(샷): 라벨 → 긍정.</summary>
+    public static readonly IReadOnlyList<(string Label, string Positive)> Shots = new[]
+    {
+        ("자동", ""),
+        ("얼굴 클로즈업", "extreme close-up, face focus"),
+        ("클로즈업", "close-up shot"),
+        ("상반신", "upper body, bust shot"),
+        ("무릎 위", "cowboy shot, knee up"),
+        ("전신", "full body shot"),
+        ("와이드샷", "wide shot")
+    };
+
+    /// <summary>카메라 각도: 라벨 → 긍정.</summary>
+    public static readonly IReadOnlyList<(string Label, string Positive)> CameraAngles = new[]
+    {
+        ("자동", ""),
+        ("정면", "front view"),
+        ("측면", "side view, profile"),
+        ("3/4 뷰", "three-quarter view"),
+        ("하이앵글", "high angle shot"),
+        ("로우앵글", "low angle shot"),
+        ("탑뷰", "top-down view, overhead")
+    };
+
+    /// <summary>분위기: 라벨 → 긍정.</summary>
+    public static readonly IReadOnlyList<(string Label, string Positive)> Moods = new[]
+    {
+        ("없음", ""),
+        ("밝음", "bright cheerful mood"),
+        ("평화로움", "peaceful serene atmosphere"),
+        ("몽환적", "dreamy ethereal atmosphere"),
+        ("신비로움", "mysterious mood"),
+        ("우울함", "melancholic mood"),
+        ("긴장감", "tense suspenseful atmosphere"),
+        ("로맨틱", "romantic atmosphere"),
+        ("웅장함", "epic grand atmosphere"),
+        ("어두움", "dark gloomy mood"),
+        ("공포", "horror, eerie atmosphere")
+    };
+
+    /// <summary>배경: 라벨 → 긍정.</summary>
+    public static readonly IReadOnlyList<(string Label, string Positive)> Backgrounds = new[]
+    {
+        ("자동", ""),
+        ("없음", "plain simple background"),
+        ("실내", "indoor interior"),
+        ("도시", "city, urban background"),
+        ("거리", "street background"),
+        ("자연", "nature background"),
+        ("숲", "forest"),
+        ("바다", "ocean, sea"),
+        ("산", "mountains"),
+        ("판타지", "fantasy landscape")
+    };
+
+    /// <summary>시간대: 라벨 → 긍정.</summary>
+    public static readonly IReadOnlyList<(string Label, string Positive)> TimesOfDay = new[]
+    {
+        ("자동", ""),
+        ("아침", "morning light"),
+        ("낮", "daytime"),
+        ("골든아워", "golden hour"),
+        ("일몰", "sunset"),
+        ("밤", "night")
+    };
+
+    /// <summary>콘텐츠 이용 등급 라벨입니다. (프롬프트 부정에 영향)</summary>
+    public static IReadOnlyList<string> ContentRatingLabels { get; } = new[] { "전체 이용가", "12+", "15+", "18+" };
+
+    /// <summary>촬영 범위 라벨 목록입니다.</summary>
+    public static IReadOnlyList<string> ShotLabels { get; } = Shots.Select(p => p.Label).ToArray();
+
+    /// <summary>카메라 각도 라벨 목록입니다.</summary>
+    public static IReadOnlyList<string> CameraAngleLabels { get; } = CameraAngles.Select(p => p.Label).ToArray();
+
+    /// <summary>분위기 라벨 목록입니다.</summary>
+    public static IReadOnlyList<string> MoodLabels { get; } = Moods.Select(p => p.Label).ToArray();
+
+    /// <summary>배경 라벨 목록입니다.</summary>
+    public static IReadOnlyList<string> BackgroundLabels { get; } = Backgrounds.Select(p => p.Label).ToArray();
+
+    /// <summary>시간대 라벨 목록입니다.</summary>
+    public static IReadOnlyList<string> TimeOfDayLabels { get; } = TimesOfDay.Select(p => p.Label).ToArray();
+
     /// <summary>
     /// 스타일 설정에서 이미지 프롬프트에 붙일 긍정 접두(스타일)를 조합합니다.
     /// </summary>
@@ -119,12 +243,29 @@ public static class ImageStyleCatalog
         {
             FindPreset(s.Preset).Positive,
             LookupQ(Qualities, s.Quality),
+            LookupQ(Shots, s.Shot),
+            LookupQ(CameraAngles, s.CameraAngle),
             LookupQ(Lightings, s.Lighting),
             LookupQ(ColorMoods, s.ColorMood),
+            LookupQ(Moods, s.Mood),
+            LookupQ(Backgrounds, s.Background),
+            LookupQ(TimesOfDay, s.TimeOfDay),
+            RealismFragment(s.Realism),
+            DetailFragment(s.Detail),
+            BackgroundComplexityFragment(s.BackgroundComplexity),
             s.ExtraPositive?.Trim() ?? string.Empty
         };
         return string.Join(", ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
     }
+
+    private static string RealismFragment(int v)
+        => v <= 25 ? "stylized, artistic" : v >= 75 ? "photorealistic, lifelike detail" : string.Empty;
+
+    private static string DetailFragment(int v)
+        => v >= 75 ? "intricate details, sharp focus" : v <= 20 ? "simple, clean" : string.Empty;
+
+    private static string BackgroundComplexityFragment(int v)
+        => v <= 25 ? "minimal background" : v >= 75 ? "highly detailed complex background" : string.Empty;
 
     /// <summary>
     /// 스타일 설정에서 부정 프롬프트를 조합합니다. (기본 + 프리셋 + 사용자 추가)
@@ -132,9 +273,18 @@ public static class ImageStyleCatalog
     public static string BuildNegative(ImageStyleSettings s)
     {
         var presetNeg = FindPreset(s.Preset).Negative ?? string.Empty;
-        var parts = new[] { BaseNegative, presetNeg, s.ExtraNegative?.Trim() ?? string.Empty };
+        var parts = new[] { BaseNegative, presetNeg, ContentRatingNegative(s.ContentRating), s.ExtraNegative?.Trim() ?? string.Empty };
         return string.Join(", ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
     }
+
+    // 콘텐츠 이용 등급에 따른 부정 프롬프트. (18+는 제한 없음)
+    private static string ContentRatingNegative(string rating) => rating switch
+    {
+        "전체 이용가" => "nsfw, nude, sexual content, gore, blood, violence",
+        "12+" => "nsfw, nude, sexual content, gore",
+        "15+" => "nsfw, nude, explicit content",
+        _ => string.Empty
+    };
 
     private static string LookupQ(IReadOnlyList<(string Label, string Positive)> list, string label)
         => list.FirstOrDefault(x => x.Label == label).Positive ?? string.Empty;

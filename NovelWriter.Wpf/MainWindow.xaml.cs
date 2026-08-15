@@ -454,6 +454,16 @@ public partial class MainWindow : Window
         };
         viewModel.LaunchImageServerCallback = () => _viewModel.LaunchImageServerCommand.Execute(null);
         viewModel.EnsureImageModel = () => _viewModel.EnsureComfyModelReadyAsync();
+        viewModel.ConfirmStyleBeforeGenerate = () =>
+        {
+            var ok = ShowImageStyleDialog(window);
+            if (ok)
+            {
+                viewModel.StylePrefix = _viewModel.CurrentStylePrefix;
+            }
+
+            return ok;
+        };
         window.ShowDialog();
 
         // 저장된 .md가 참고자료 폴더에 있으면 서랍을 새로고침합니다.
@@ -506,6 +516,17 @@ public partial class MainWindow : Window
         viewModel.LaunchImageServerCallback = () => _viewModel.LaunchImageServerCommand.Execute(null);
         // 생성 전 모델 준비(없으면 자동 다운로드)
         viewModel.EnsureImageModel = () => _viewModel.EnsureComfyModelReadyAsync();
+        // 생성 버튼 → 화풍 설정 팝업 (확인 시 현재 화풍을 설계에 반영)
+        viewModel.ConfirmStyleBeforeGenerate = () =>
+        {
+            var ok = ShowImageStyleDialog(window);
+            if (ok)
+            {
+                project.ImageStylePrefix = _viewModel.CurrentStylePrefix;
+            }
+
+            return ok;
+        };
         window.ShowDialog();
     }
 
@@ -580,6 +601,15 @@ public partial class MainWindow : Window
 
         _forceClose = true; // No이거나 저장 완료 → 실제로 닫기
         Close();
+    }
+
+    /// <summary>
+    /// 화풍 설정 팝업을 띄웁니다. [이미지 생성]을 누르면 true를 반환합니다.
+    /// </summary>
+    private bool ShowImageStyleDialog(Window? owner)
+    {
+        var dialog = new ImageStyleDialog(_viewModel) { Owner = owner ?? this };
+        return dialog.ShowDialog() == true;
     }
 
     /// <summary>

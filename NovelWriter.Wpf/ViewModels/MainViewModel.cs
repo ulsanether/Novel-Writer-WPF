@@ -363,6 +363,69 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _styleExtraNegative = string.Empty;
 
+    /// <summary>촬영 범위 목록입니다.</summary>
+    public IReadOnlyList<string> StyleShotOptions => ImageStyleCatalog.ShotLabels;
+
+    /// <summary>카메라 각도 목록입니다.</summary>
+    public IReadOnlyList<string> StyleCameraAngleOptions => ImageStyleCatalog.CameraAngleLabels;
+
+    /// <summary>분위기 목록입니다.</summary>
+    public IReadOnlyList<string> StyleMoodOptions => ImageStyleCatalog.MoodLabels;
+
+    /// <summary>배경 목록입니다.</summary>
+    public IReadOnlyList<string> StyleBackgroundOptions => ImageStyleCatalog.BackgroundLabels;
+
+    /// <summary>시간대 목록입니다.</summary>
+    public IReadOnlyList<string> StyleTimeOfDayOptions => ImageStyleCatalog.TimeOfDayLabels;
+
+    /// <summary>콘텐츠 이용 등급 목록입니다.</summary>
+    public IReadOnlyList<string> StyleContentRatingOptions => ImageStyleCatalog.ContentRatingLabels;
+
+    [ObservableProperty]
+    private string _styleShot = "자동";
+
+    [ObservableProperty]
+    private string _styleCameraAngle = "자동";
+
+    [ObservableProperty]
+    private string _styleMood = "없음";
+
+    [ObservableProperty]
+    private string _styleBackground = "자동";
+
+    [ObservableProperty]
+    private string _styleTimeOfDay = "자동";
+
+    [ObservableProperty]
+    private string _styleContentRating = "전체 이용가";
+
+    [ObservableProperty]
+    private int _styleRealism = 50;
+
+    [ObservableProperty]
+    private int _styleDetail = 60;
+
+    [ObservableProperty]
+    private int _styleBackgroundComplexity = 50;
+
+    partial void OnStyleShotChanged(string value) => ApplyImageStyle();
+
+    partial void OnStyleCameraAngleChanged(string value) => ApplyImageStyle();
+
+    partial void OnStyleMoodChanged(string value) => ApplyImageStyle();
+
+    partial void OnStyleBackgroundChanged(string value) => ApplyImageStyle();
+
+    partial void OnStyleTimeOfDayChanged(string value) => ApplyImageStyle();
+
+    partial void OnStyleContentRatingChanged(string value) => ApplyImageStyle();
+
+    partial void OnStyleRealismChanged(int value) => ApplyImageStyle();
+
+    partial void OnStyleDetailChanged(int value) => ApplyImageStyle();
+
+    partial void OnStyleBackgroundComplexityChanged(int value) => ApplyImageStyle();
+
     /// <summary>현재 스타일에서 만들어진 긍정 접두입니다. (스토리 플래너/참고자료 생성기 공용)</summary>
     public string CurrentStylePrefix { get; private set; } = ImageStyleCatalog.BuildPositivePrefix(new ImageStyleSettings());
 
@@ -395,7 +458,16 @@ public partial class MainViewModel : ObservableObject
         Lighting = StyleLighting,
         ColorMood = StyleColorMood,
         ExtraPositive = StyleExtraPositive,
-        ExtraNegative = StyleExtraNegative
+        ExtraNegative = StyleExtraNegative,
+        Shot = StyleShot,
+        CameraAngle = StyleCameraAngle,
+        Mood = StyleMood,
+        Background = StyleBackground,
+        TimeOfDay = StyleTimeOfDay,
+        ContentRating = StyleContentRating,
+        Realism = StyleRealism,
+        Detail = StyleDetail,
+        BackgroundComplexity = StyleBackgroundComplexity
     };
 
     /// <summary>
@@ -438,12 +510,24 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
+        var prevSuppress = _suppressDirty;
+        _suppressDirty = true;
         StylePreset = string.IsNullOrWhiteSpace(style.Preset) ? "스토리북" : style.Preset;
         StyleQuality = string.IsNullOrWhiteSpace(style.Quality) ? "고품질" : style.Quality;
         StyleLighting = string.IsNullOrWhiteSpace(style.Lighting) ? "없음" : style.Lighting;
         StyleColorMood = string.IsNullOrWhiteSpace(style.ColorMood) ? "없음" : style.ColorMood;
         StyleExtraPositive = style.ExtraPositive ?? string.Empty;
         StyleExtraNegative = style.ExtraNegative ?? string.Empty;
+        StyleShot = string.IsNullOrWhiteSpace(style.Shot) ? "자동" : style.Shot;
+        StyleCameraAngle = string.IsNullOrWhiteSpace(style.CameraAngle) ? "자동" : style.CameraAngle;
+        StyleMood = string.IsNullOrWhiteSpace(style.Mood) ? "없음" : style.Mood;
+        StyleBackground = string.IsNullOrWhiteSpace(style.Background) ? "자동" : style.Background;
+        StyleTimeOfDay = string.IsNullOrWhiteSpace(style.TimeOfDay) ? "자동" : style.TimeOfDay;
+        StyleContentRating = string.IsNullOrWhiteSpace(style.ContentRating) ? "전체 이용가" : style.ContentRating;
+        StyleRealism = style.Realism;
+        StyleDetail = style.Detail;
+        StyleBackgroundComplexity = style.BackgroundComplexity;
+        _suppressDirty = prevSuppress;
         ApplyImageStyle();
     }
 

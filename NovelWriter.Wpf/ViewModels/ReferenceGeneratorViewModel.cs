@@ -33,6 +33,9 @@ public partial class ReferenceGeneratorViewModel : ObservableObject
     /// <summary>생성 이미지를 메인 에디터 본문에 삽입하는 콜백입니다. (경로)</summary>
     public Action<string>? InsertImageToEditor { get; set; }
 
+    /// <summary>생성 직전 화풍 설정 팝업을 띄우는 콜백입니다. (true=생성 진행)</summary>
+    public Func<bool>? ConfirmStyleBeforeGenerate { get; set; }
+
     /// <summary>
     /// 뷰모델을 초기화합니다.
     /// </summary>
@@ -262,6 +265,12 @@ public partial class ReferenceGeneratorViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(ImagePrompt) && string.IsNullOrWhiteSpace(GeneratedContent))
         {
             StatusMessage = "먼저 참고자료를 생성하거나 이미지 프롬프트를 입력하세요.";
+            return;
+        }
+
+        // 생성 전 화풍 설정 팝업 (취소 시 생성 안 함)
+        if (ConfirmStyleBeforeGenerate is not null && !ConfirmStyleBeforeGenerate())
+        {
             return;
         }
 
