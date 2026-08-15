@@ -50,6 +50,13 @@
 
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
             <Button
+                Margin="0,0,8,0"
+                DockPanel.Dock="Left"
+                Command="{Binding AutoFillCommand}"
+                Content="🎲 제목·요청 자동 생성"
+                Style="{StaticResource MaterialDesignOutlinedButton}"
+                ToolTip="선택한 유형에 맞는 제목과 요청 내용을 무작위로 지어냅니다." />
+            <Button
                 DockPanel.Dock="Left"
                 Command="{Binding GenerateCommand}"
                 Content="AI 생성"

@@ -43,17 +43,67 @@ public sealed class StoryPlannerService
         return await EnsureKoreanAsync(await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) }));
     }
 
+    /// <summary>이야기 단계 순서입니다. (발단·전개·위기·절정·결말)</summary>
+    private static readonly string[] PhaseOrder = { "발단", "전개", "위기", "절정", "결말" };
+
     /// <summary>
-    /// 시놉시스를 바탕으로 장 구성을 생성합니다.
+    /// 장 위치(0-based)와 전체 장 수로 이야기 단계를 계산합니다. (발단→전개→위기→절정→결말)
+    /// </summary>
+    public static string PhaseForIndex(int index, int total)
+    {
+        if (total <= 1)
+        {
+            return "발단";
+        }
+
+        if (index <= 0)
+        {
+            return "발단";
+        }
+
+        if (index >= total - 1)
+        {
+            return "결말";
+        }
+
+        var ratio = (double)index / (total - 1);
+        if (ratio < 0.45)
+        {
+            return "전개";
+        }
+
+        return ratio < 0.75 ? "위기" : "절정";
+    }
+
+    /// <summary>단계별 서술 지침입니다.</summary>
+    public static string PhaseGuidance(string phase) => phase switch
+    {
+        "발단" => "이야기의 도입부. 배경·인물·일상을 소개하고 중심 갈등의 씨앗을 심는다. 아직 큰 사건은 터지지 않으며, 결말을 미리 드러내지 않는다.",
+        "전개" => "사건이 본격화되는 상승 구간. 갈등을 키우고 인물의 목표와 관계를 구체화한다.",
+        "위기" => "갈등이 심화되고 위기가 고조된다. 긴장을 높이고 되돌릴 수 없는 선택으로 몰아간다.",
+        "절정" => "이야기의 정점(클라이맥스). 핵심 갈등이 폭발하고 가장 큰 사건이 벌어진다.",
+        "결말" => "갈등을 해소하고 이야기를 마무리한다. 설정한 결말 방향에 맞춰 여운을 남긴다.",
+        _ => string.Empty
+    };
+
+    /// <summary>
+    /// 시놉시스를 바탕으로 장 구성을 생성합니다. (발단·전개·위기·절정·결말 구조 반영)
     /// </summary>
     public async Task<List<ChapterNode>> GenerateChaptersAsync(StoryProject project)
     {
+        var total = Math.Max(1, project.ChapterCount);
+        // 각 장에 배치할 이야기 단계 계획
+        var plan = string.Join("\n", Enumerable.Range(0, total).Select(i => $"{i + 1}장 → {PhaseForIndex(i, total)}"));
+
         const string system = "당신은 소설 구조 설계자입니다. 요청한 JSON 배열만 출력하고 다른 설명은 절대 쓰지 마세요. 모든 JSON 문자열 값은 반드시 한국어로 작성하고 영어를 쓰지 마세요.";
         var user = BuildBible(project)
             + $"\n\n[전체 시놉시스]\n{project.Synopsis}\n\n"
-            + $"[요청] 이 작품을 정확히 {Math.Max(1, project.ChapterCount)}개의 장으로 나누세요. "
-            + "각 장을 JSON 배열의 원소로 출력하세요. 각 원소는 다음 키를 가집니다: "
-            + "\"title\"(장 제목), \"summary\"(장 요약), \"purpose\"(장 목적), \"conflict\"(갈등), \"reveal\"(반전), \"ending\"(종료 상태). "
+            + $"[요청] 이 작품을 정확히 {total}개의 장으로 나누세요. "
+            + "전체를 **발단 → 전개 → 위기 → 절정 → 결말**의 이야기 흐름으로 구성하고, 아래 단계 배치를 '정확히' 따르세요. "
+            + "발단 장에서는 결말이나 큰 사건을 미리 터뜨리지 말고 도입에 집중하고, 절정 장에서 핵심 갈등이 폭발하며, 결말 장에서 마무리하세요.\n"
+            + $"[장별 이야기 단계]\n{plan}\n\n"
+            + "각 장을 JSON 배열의 원소로 '순서대로' 출력하세요. 각 원소는 다음 키를 가집니다: "
+            + "\"phase\"(이야기 단계: 발단/전개/위기/절정/결말 중 하나), \"title\"(장 제목), \"summary\"(장 요약), \"purpose\"(장 목적), \"conflict\"(갈등), \"reveal\"(반전), \"ending\"(종료 상태). "
             + "JSON 배열만 출력하세요.";
 
         var reply = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });
@@ -72,6 +122,12 @@ public sealed class StoryPlannerService
             });
         }
 
+        // 단계는 위치 기준으로 확정합니다. (모델이 잘못 넣어도 순서가 곧 구조)
+        for (var i = 0; i < chapters.Count; i++)
+        {
+            chapters[i].Phase = PhaseForIndex(i, chapters.Count);
+        }
+
         return chapters;
     }
 
@@ -81,8 +137,12 @@ public sealed class StoryPlannerService
     public async Task<List<SceneNode>> GenerateScenesAsync(StoryProject project, ChapterNode chapter)
     {
         const string system = "당신은 소설 구조 설계자입니다. 요청한 JSON 배열만 출력하고 다른 설명은 절대 쓰지 마세요. 모든 JSON 문자열 값은 반드시 한국어로 작성하고 영어를 쓰지 마세요.";
+        var phaseLine = string.IsNullOrWhiteSpace(chapter.Phase)
+            ? string.Empty
+            : $"[이 장의 이야기 단계] {chapter.Phase} — {PhaseGuidance(chapter.Phase)}\n이 단계에 맞게 Scene의 긴장도와 사건 규모를 조절하세요.\n\n";
         var user = BuildBible(project)
             + $"\n\n[전체 시놉시스 요약]\n{Shorten(project.Synopsis, 600)}\n\n"
+            + phaseLine
             + $"[현재 장]\n제목: {chapter.Title}\n요약: {chapter.Summary}\n목적: {chapter.Purpose}\n갈등: {chapter.Conflict}\n반전: {chapter.Reveal}\n종료: {chapter.Ending}\n\n"
             + "[요청] 이 장을 3~6개의 Scene으로 나누세요. 각 Scene을 JSON 배열의 원소로 출력하세요. 각 원소 키: "
             + "\"title\"(Scene 제목), \"summary\"(요약), \"goal\"(목표), \"characters\"(등장인물), \"location\"(장소), \"conflict\"(갈등), \"result\"(결과), \"nextLink\"(다음 Scene 연결). "
@@ -121,8 +181,12 @@ public sealed class StoryPlannerService
             + "설정을 벗어나거나 금지사항을 위반하지 마세요. "
             + "매우 중요: '제목/요약/목표/등장인물/장소/갈등/결과' 같은 설정 항목이나 목록·머리말·라벨을 절대 출력하지 말고, "
             + "오직 장면의 서술과 인물의 대사로 이루어진 소설 본문만 작성하세요.";
+        var phaseLine = string.IsNullOrWhiteSpace(chapter.Phase)
+            ? string.Empty
+            : $"[이야기 단계] {chapter.Phase} — {PhaseGuidance(chapter.Phase)}\n\n";
         var user = BuildBible(project)
             + $"\n\n[전체 시놉시스 요약]\n{Shorten(project.Synopsis, 500)}\n\n"
+            + phaseLine
             + $"[현재 장]\n{chapter.Title} — {chapter.Summary}\n\n"
             + (string.IsNullOrWhiteSpace(previousSceneSummary) ? string.Empty : $"[이전 Scene]\n{previousSceneSummary}\n\n")
             + $"[작성할 Scene 조건 — 이 항목들은 참고만 하고 본문에 옮겨 적지 마세요]\n제목: {scene.Title}\n목표: {scene.Goal}\n등장인물: {scene.Characters}\n장소: {scene.Location}\n갈등: {scene.Conflict}\n결과: {scene.Result}\n\n"
@@ -204,8 +268,12 @@ public sealed class StoryPlannerService
     private async Task<List<string>> GenerateSceneBeatsAsync(StoryProject project, ChapterNode chapter, SceneNode scene)
     {
         const string system = "당신은 소설 구조 설계자입니다. 문자열 JSON 배열만 출력하고 다른 설명은 절대 쓰지 마세요. 모든 값은 반드시 한국어로 작성하세요.";
+        var phaseLine = string.IsNullOrWhiteSpace(chapter.Phase)
+            ? string.Empty
+            : $"[이야기 단계] {chapter.Phase} — {PhaseGuidance(chapter.Phase)}\n";
         var user = BuildBible(project)
             + $"\n\n[현재 장]\n{chapter.Title} — {chapter.Summary}\n"
+            + phaseLine
             + $"[현재 Scene]\n제목: {scene.Title}\n요약: {scene.Summary}\n목표: {scene.Goal}\n갈등: {scene.Conflict}\n결과: {scene.Result}\n\n"
             + "[요청] 이 Scene을 시간 순서대로 4~6개의 세부 사건(비트)으로 나누세요. 각 비트를 한 문장으로 설명한 "
             + "JSON 문자열 배열(예: [\"...\", \"...\"])로만 출력하세요.";

@@ -353,11 +353,7 @@
                             <MenuItem Command="{Binding SetLightThemeCommand}" Header="{Binding ThemeLightText}" />
                             <MenuItem Command="{Binding SetCustomThemeCommand}" Header="{Binding ThemeCustomText}" />
                             <Separator />
-                            <MenuItem Click="OnOpenThemeCustom" Header="커스텀 설정...">
-                                <MenuItem.Icon>
-                                    <materialDesign:PackIcon Kind="PaletteOutline" />
-                                </MenuItem.Icon>
-                            </MenuItem>
+                
                         </MenuItem>
                         <MenuItem Header="{Binding LanguageText}">
                             <MenuItem Command="{Binding SetKoreanCommand}" Header="{Binding KoreanText}" />
@@ -552,8 +548,12 @@
                     FontSize="{Binding EditorFontSize}"
                     Foreground="{Binding EditorForeground}"
                     HorizontalScrollBarVisibility="Disabled"
+                    PreviewMouseWheel="EditorOnPreviewMouseWheel"
                     SpellCheck.IsEnabled="False"
                     VerticalScrollBarVisibility="Auto">
+                    <RichTextBox.LayoutTransform>
+                        <ScaleTransform x:Name="EditorScale" ScaleX="1" ScaleY="1" />
+                    </RichTextBox.LayoutTransform>
                     <RichTextBox.Resources>
                     <!--  문단 간격 제거 (소설은 줄바꿈 위주)  -->
                     <Style TargetType="Paragraph">

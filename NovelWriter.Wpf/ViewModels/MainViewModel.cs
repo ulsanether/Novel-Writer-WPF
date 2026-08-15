@@ -563,7 +563,35 @@ public partial class MainViewModel : ObservableObject
         ImageServerStatus = "확인 중...";
         var running = await _imageService.IsRunningAsync();
         var name = UseComfyUi ? "ComfyUI" : "A1111";
-        ImageServerStatus = running ? $"✅ {name} 실행 중 (연결됨)" : $"❌ {name} 응답 없음 (설치·실행 필요)";
+        if (!running)
+        {
+            ImageServerStatus = $"❌ {name} 응답 없음 (설치·실행 필요)";
+            return;
+        }
+
+        // 연결됐으면 현재 사용 중인 모델(체크포인트)도 함께 표시
+        var modelInfo = string.Empty;
+        if (UseComfyUi)
+        {
+            var checkpoints = await _imageService.Comfy.ListCheckpointsAsync();
+            if (checkpoints.Count == 0)
+            {
+                modelInfo = " · 모델 없음(다운로드 필요)";
+            }
+            else
+            {
+                var current = _imageService.Comfy.CheckpointName;
+                if (string.IsNullOrWhiteSpace(current) || !checkpoints.Contains(current))
+                {
+                    current = checkpoints[0];
+                    _imageService.Comfy.CheckpointName = current;
+                }
+
+                modelInfo = $" · 현재 모델: {current}";
+            }
+        }
+
+        ImageServerStatus = $"✅ {name} 실행 중 (연결됨){modelInfo}";
     }
 
     /// <summary>

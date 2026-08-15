@@ -617,9 +617,15 @@ public partial class StoryPlannerViewModel : ObservableObject
         }
 
         Project.Chapters.Clear();
-        foreach (var chapter in chapters)
+        for (var i = 0; i < chapters.Count; i++)
         {
-            Project.Chapters.Add(chapter);
+            // 역분석 등으로 단계가 비어 있으면 위치 기준으로 이야기 단계를 부여
+            if (string.IsNullOrWhiteSpace(chapters[i].Phase))
+            {
+                chapters[i].Phase = StoryPlannerService.PhaseForIndex(i, chapters.Count);
+            }
+
+            Project.Chapters.Add(chapters[i]);
         }
     }
 

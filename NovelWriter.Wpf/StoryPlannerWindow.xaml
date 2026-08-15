@@ -14,6 +14,7 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <local:PathToImageConverter x:Key="PathToImage" />
+        <local:StringToVisibilityConverter x:Key="StringToVis" />
     </Window.Resources>
 
     <Grid Margin="10">
@@ -27,224 +28,269 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!--  좌: 작품 설정 + 시놉시스  -->
-        <ScrollViewer
+        <!--  좌: 작품 설정 + 시놉시스 — 세로 탭 2열 (시놉시스 생성은 탭 밖)  -->
+        <DockPanel
             Grid.Row="0"
             Grid.Column="0"
-            Margin="0,0,10,0"
-            VerticalScrollBarVisibility="Auto">
-            <StackPanel>
-                <TextBlock
-                    Margin="0,0,0,8"
-                    FontSize="16"
-                    FontWeight="Bold"
-                    Text="작품 설정 (Story Bible)" />
-                <TextBox
-                    Margin="0,0,0,8"
-                    materialDesign:HintAssist.Hint="제목"
-                    Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                    Text="{Binding Project.Title}" />
-                <ComboBox
-                    Margin="0,0,0,8"
-                    materialDesign:HintAssist.Hint="장르 (선택 또는 입력)"
-                    IsEditable="True"
-                    ItemsSource="{Binding GenreSamples}"
-                    Style="{StaticResource MaterialDesignOutlinedComboBox}"
-                    Text="{Binding Project.Genre, UpdateSourceTrigger=LostFocus}" />
-                <ComboBox
-                    Margin="0,0,0,8"
-                    materialDesign:HintAssist.Hint="시대 (선택 또는 입력)"
-                    IsEditable="True"
-                    ItemsSource="{Binding EraSamples}"
-                    Style="{StaticResource MaterialDesignOutlinedComboBox}"
-                    Text="{Binding Project.Era, UpdateSourceTrigger=LostFocus}" />
-                <ComboBox
-                    Margin="0,0,0,8"
-                    materialDesign:HintAssist.Hint="세계관 (선택 또는 입력)"
-                    IsEditable="True"
-                    ItemsSource="{Binding WorldSamples}"
-                    Style="{StaticResource MaterialDesignOutlinedComboBox}"
-                    Text="{Binding Project.World, UpdateSourceTrigger=LostFocus}" />
-                <TextBox
-                    MinHeight="52"
-                    Margin="0,0,0,8"
-                    materialDesign:HintAssist.Hint="핵심 사건"
-                    AcceptsReturn="True"
-                    Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                    Text="{Binding Project.CoreEvent}"
-                    TextWrapping="Wrap" />
-                <ComboBox
-                    Margin="0,0,0,8"
-                    materialDesign:HintAssist.Hint="결말 (선택 또는 입력)"
-                    IsEditable="True"
-                    ItemsSource="{Binding EndingSamples}"
-                    Style="{StaticResource MaterialDesignOutlinedComboBox}"
-                    Text="{Binding Project.Ending, UpdateSourceTrigger=LostFocus}" />
-                <TextBox
-                    MinHeight="52"
-                    Margin="0,0,0,8"
-                    materialDesign:HintAssist.Hint="금지사항 (예: 준호는 12장 이전에 비밀을 알면 안 됨)"
-                    AcceptsReturn="True"
-                    Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                    Text="{Binding Project.Forbidden}"
-                    TextWrapping="Wrap" />
-                <TextBox
-                    Margin="0,0,0,12"
-                    materialDesign:HintAssist.Hint="장 수"
-                    Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                    Text="{Binding Project.ChapterCount}" />
+            Margin="0,0,10,0">
+            <Button
+                Margin="0,0,0,8"
+                Command="{Binding GenerateSynopsisCommand}"
+                Content="전체 시놉시스 생성"
+                DockPanel.Dock="Top"
+                Style="{StaticResource MaterialDesignRaisedButton}" />
+            <TabControl TabStripPlacement="Left">
+                <TabControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="2" />
+                    </ItemsPanelTemplate>
+                </TabControl.ItemsPanel>
 
-                <DockPanel Margin="0,0,0,6">
-                    <TextBlock FontWeight="SemiBold" Text="등장인물" />
-                    <Button
-                        HorizontalAlignment="Right"
-                        Command="{Binding AddCharacterCommand}"
-                        DockPanel.Dock="Right"
-                        Style="{StaticResource MaterialDesignToolButton}"
-                        ToolTip="인물 추가">
-                        <materialDesign:PackIcon Kind="Plus" />
-                    </Button>
-                </DockPanel>
-                <TextBlock Margin="0,0,0,8" FontSize="11" Opacity="0.8" Text="{Binding ImageServerStatus}" />
-                <ItemsControl Margin="0,0,0,12" ItemsSource="{Binding Project.Characters}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="{x:Type models:StoryCharacter}">
-                            <Border
+                <!--  탭 1: 기본  -->
+                <TabItem Header="기본">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="8">
+                            <TextBlock
                                 Margin="0,0,0,8"
-                                Padding="8"
-                                Background="#22808080"
-                                CornerRadius="6">
-                                <StackPanel>
-                                    <DockPanel>
-                                        <Button
-                                            Command="{Binding DataContext.RemoveCharacterCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                            CommandParameter="{Binding}"
-                                            DockPanel.Dock="Right"
-                                            Style="{StaticResource MaterialDesignToolButton}"
-                                            ToolTip="삭제">
-                                            <materialDesign:PackIcon Kind="Delete" />
-                                        </Button>
-                                        <Button
-                                            Command="{Binding DataContext.ExportCharacterCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                            CommandParameter="{Binding}"
-                                            DockPanel.Dock="Right"
-                                            Style="{StaticResource MaterialDesignToolButton}"
-                                            ToolTip="참고자료(.md)로 내보내기">
-                                            <materialDesign:PackIcon Kind="FileExportOutline" />
-                                        </Button>
-                                        <Button
-                                            Command="{Binding DataContext.GenerateCharacterImageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                            CommandParameter="{Binding}"
-                                            DockPanel.Dock="Right"
-                                            Style="{StaticResource MaterialDesignToolButton}"
-                                            ToolTip="캐릭터 이미지 생성">
-                                            <materialDesign:PackIcon Kind="ImagePlusOutline" />
-                                        </Button>
-                                        <TextBox materialDesign:HintAssist.Hint="이름" Text="{Binding Name}" />
-                                    </DockPanel>
-                                    <TextBox
-                                        Margin="0,4,0,0"
-                                        materialDesign:HintAssist.Hint="성격"
-                                        Text="{Binding Personality}" />
-                                    <TextBox
-                                        Margin="0,4,0,0"
-                                        materialDesign:HintAssist.Hint="목표"
-                                        Text="{Binding Goal}" />
-                                    <TextBox
-                                        Margin="0,4,0,0"
-                                        materialDesign:HintAssist.Hint="비밀"
-                                        Text="{Binding Secret}" />
-                                    <TextBox
-                                        Margin="0,4,0,0"
-                                        materialDesign:HintAssist.Hint="관계"
-                                        Text="{Binding Relationships}" />
-                                    <Image
-                                        MaxHeight="140"
-                                        Margin="0,6,0,0"
-                                        HorizontalAlignment="Left"
-                                        Source="{Binding ReferenceImagePath, Converter={StaticResource PathToImage}}"
-                                        Stretch="Uniform" />
-                                    <Button
-                                        Margin="0,4,0,0"
-                                        HorizontalAlignment="Left"
-                                        Padding="8,2"
-                                        Command="{Binding DataContext.InsertCharacterImageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                        CommandParameter="{Binding}"
-                                        Content="본문에 삽입"
-                                        Style="{StaticResource MaterialDesignOutlinedButton}" />
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                                FontSize="15"
+                                FontWeight="Bold"
+                                Text="작품 설정 (Story Bible)" />
+                            <TextBox
+                                Margin="0,0,0,8"
+                                materialDesign:HintAssist.Hint="제목"
+                                Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                Text="{Binding Project.Title}" />
+                            <ComboBox
+                                Margin="0,0,0,8"
+                                materialDesign:HintAssist.Hint="장르 (선택 또는 입력)"
+                                IsEditable="True"
+                                ItemsSource="{Binding GenreSamples}"
+                                Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                Text="{Binding Project.Genre, UpdateSourceTrigger=LostFocus}" />
+                            <ComboBox
+                                Margin="0,0,0,8"
+                                materialDesign:HintAssist.Hint="시대 (선택 또는 입력)"
+                                IsEditable="True"
+                                ItemsSource="{Binding EraSamples}"
+                                Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                Text="{Binding Project.Era, UpdateSourceTrigger=LostFocus}" />
+                            <TextBox
+                                Margin="0,0,0,12"
+                                materialDesign:HintAssist.Hint="장 수"
+                                Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                Text="{Binding Project.ChapterCount}" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
 
-                <Button
-                    Margin="0,0,0,10"
-                    Command="{Binding GenerateSynopsisCommand}"
-                    Content="전체 시놉시스 생성"
-                    Style="{StaticResource MaterialDesignRaisedButton}" />
-                <TextBlock
-                    Margin="0,0,0,4"
-                    FontWeight="SemiBold"
-                    Text="전체 시놉시스" />
-                <TextBox
-                    MinHeight="140"
-                    MaxHeight="260"
-                    materialDesign:HintAssist.Hint="시놉시스"
-                    AcceptsReturn="True"
-                    Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                    Text="{Binding Project.Synopsis}"
-                    TextWrapping="Wrap"
-                    VerticalScrollBarVisibility="Auto" />
-                <Button
-                    Margin="0,10,0,0"
-                    Command="{Binding GenerateChaptersCommand}"
-                    Content="장 구성 생성"
-                    Style="{StaticResource MaterialDesignRaisedButton}" />
+                <!--  탭 2: 배경·인물·시놉시스 (병합)  -->
+                <TabItem Header="세부">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="8">
+                            <ComboBox
+                                Margin="0,0,0,8"
+                                materialDesign:HintAssist.Hint="세계관 (선택 또는 입력)"
+                                IsEditable="True"
+                                ItemsSource="{Binding WorldSamples}"
+                                Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                Text="{Binding Project.World, UpdateSourceTrigger=LostFocus}" />
+                            <TextBox
+                                MinHeight="52"
+                                Margin="0,0,0,8"
+                                materialDesign:HintAssist.Hint="핵심 사건"
+                                AcceptsReturn="True"
+                                Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                Text="{Binding Project.CoreEvent}"
+                                TextWrapping="Wrap" />
+                            <ComboBox
+                                Margin="0,0,0,8"
+                                materialDesign:HintAssist.Hint="결말 (선택 또는 입력)"
+                                IsEditable="True"
+                                ItemsSource="{Binding EndingSamples}"
+                                Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                Text="{Binding Project.Ending, UpdateSourceTrigger=LostFocus}" />
+                            <TextBox
+                                MinHeight="52"
+                                Margin="0,0,0,8"
+                                materialDesign:HintAssist.Hint="금지사항 (예: 준호는 12장 이전에 비밀을 알면 안 됨)"
+                                AcceptsReturn="True"
+                                Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                Text="{Binding Project.Forbidden}"
+                                TextWrapping="Wrap" />
+                            <Separator Margin="0,10,0,10" />
+                            <TextBlock
+                                Margin="0,0,0,6"
+                                FontWeight="Bold"
+                                Text="등장인물" />
+                            <DockPanel Margin="0,0,0,6">
+                                <TextBlock FontWeight="SemiBold" Text="인물 목록" />
+                                <Button
+                                    HorizontalAlignment="Right"
+                                    Command="{Binding AddCharacterCommand}"
+                                    DockPanel.Dock="Right"
+                                    Style="{StaticResource MaterialDesignToolButton}"
+                                    ToolTip="인물 추가">
+                                    <materialDesign:PackIcon Kind="Plus" />
+                                </Button>
+                            </DockPanel>
+                            <TextBlock
+                                Margin="0,0,0,8"
+                                FontSize="11"
+                                Opacity="0.8"
+                                Text="{Binding ImageServerStatus}" />
+                            <ItemsControl Margin="0,0,0,12" ItemsSource="{Binding Project.Characters}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type models:StoryCharacter}">
+                                        <Border
+                                            Margin="0,0,0,8"
+                                            Padding="8"
+                                            Background="#22808080"
+                                            CornerRadius="6">
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <Button
+                                                        Command="{Binding DataContext.RemoveCharacterCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        DockPanel.Dock="Right"
+                                                        Style="{StaticResource MaterialDesignToolButton}"
+                                                        ToolTip="삭제">
+                                                        <materialDesign:PackIcon Kind="Delete" />
+                                                    </Button>
+                                                    <Button
+                                                        Command="{Binding DataContext.ExportCharacterCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        DockPanel.Dock="Right"
+                                                        Style="{StaticResource MaterialDesignToolButton}"
+                                                        ToolTip="참고자료(.md)로 내보내기">
+                                                        <materialDesign:PackIcon Kind="FileExportOutline" />
+                                                    </Button>
+                                                    <Button
+                                                        Command="{Binding DataContext.GenerateCharacterImageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        DockPanel.Dock="Right"
+                                                        Style="{StaticResource MaterialDesignToolButton}"
+                                                        ToolTip="캐릭터 이미지 생성">
+                                                        <materialDesign:PackIcon Kind="ImagePlusOutline" />
+                                                    </Button>
+                                                    <TextBox materialDesign:HintAssist.Hint="이름" Text="{Binding Name}" />
+                                                </DockPanel>
+                                                <TextBox
+                                                    Margin="0,4,0,0"
+                                                    materialDesign:HintAssist.Hint="성격"
+                                                    Text="{Binding Personality}" />
+                                                <TextBox
+                                                    Margin="0,4,0,0"
+                                                    materialDesign:HintAssist.Hint="목표"
+                                                    Text="{Binding Goal}" />
+                                                <TextBox
+                                                    Margin="0,4,0,0"
+                                                    materialDesign:HintAssist.Hint="비밀"
+                                                    Text="{Binding Secret}" />
+                                                <TextBox
+                                                    Margin="0,4,0,0"
+                                                    materialDesign:HintAssist.Hint="관계"
+                                                    Text="{Binding Relationships}" />
+                                                <Image
+                                                    MaxHeight="140"
+                                                    Margin="0,6,0,0"
+                                                    HorizontalAlignment="Left"
+                                                    Source="{Binding ReferenceImagePath, Converter={StaticResource PathToImage}}"
+                                                    Stretch="Uniform" />
+                                                <Button
+                                                    Margin="0,4,0,0"
+                                                    Padding="8,2"
+                                                    HorizontalAlignment="Left"
+                                                    Command="{Binding DataContext.InsertCharacterImageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Content="본문에 삽입"
+                                                    Style="{StaticResource MaterialDesignOutlinedButton}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Separator Margin="0,10,0,10" />
+                            <TextBlock
+                                Margin="0,0,0,4"
+                                FontWeight="Bold"
+                                Text="전체 시놉시스" />
+                            <TextBox
+                                MinHeight="200"
+                                MaxHeight="360"
+                                materialDesign:HintAssist.Hint="시놉시스"
+                                AcceptsReturn="True"
+                                Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                Text="{Binding Project.Synopsis}"
+                                TextWrapping="Wrap"
+                                VerticalScrollBarVisibility="Auto" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
 
-                <!--  참고자료 연동 (참고자료 폴더 → 인물/생성 참조)  -->
-                <Separator Margin="0,16,0,10" />
-                <DockPanel Margin="0,0,0,6">
-                    <TextBlock FontWeight="Bold" Text="📎 참고자료 연동" />
-                    <Button
-                        HorizontalAlignment="Right"
-                        Command="{Binding LoadReferencesCommand}"
-                        DockPanel.Dock="Right"
-                        Style="{StaticResource MaterialDesignToolButton}"
-                        ToolTip="새로고침">
-                        <materialDesign:PackIcon Kind="Refresh" />
-                    </Button>
-                </DockPanel>
-                <ListBox
-                    MaxHeight="120"
-                    Margin="0,0,0,6"
-                    ItemsSource="{Binding References}"
-                    SelectedItem="{Binding SelectedReference}">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal">
-                                <materialDesign:PackIcon Margin="0,0,6,0" VerticalAlignment="Center" Kind="FileDocumentOutline" />
-                                <TextBlock VerticalAlignment="Center" Text="{Binding Name}" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-                <WrapPanel>
-                    <Button Margin="0,0,6,6" Command="{Binding ImportCharacterCommand}" Content="인물로 추가" Style="{StaticResource MaterialDesignRaisedButton}" />
-                    <Button Margin="0,0,6,6" Command="{Binding IncludeReferenceCommand}" Content="설정에 참조" Style="{StaticResource MaterialDesignOutlinedButton}" />
-                    <Button Margin="0,0,0,6" Command="{Binding ClearReferenceNotesCommand}" Content="참조 비우기" Style="{StaticResource MaterialDesignFlatButton}" />
-                </WrapPanel>
-                <TextBox
-                    MaxHeight="80"
-                    materialDesign:HintAssist.Hint="생성 참조 메모 (인물·배경 묘사 등, 생성 시 반영)"
-                    AcceptsReturn="True"
-                    IsReadOnly="True"
-                    Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                    Text="{Binding Project.ReferenceNotes}"
-                    TextWrapping="Wrap"
-                    VerticalScrollBarVisibility="Auto" />
-            </StackPanel>
-        </ScrollViewer>
+                <!--  탭 3: 참고자료  -->
+                <TabItem Header="참고자료">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="8">
+                            <!--  참고자료 연동 (참고자료 폴더 → 인물/생성 참조)  -->
+                            <DockPanel Margin="0,0,0,6">
+                                <TextBlock FontWeight="Bold" Text="📎 참고자료 연동" />
+                                <Button
+                                    HorizontalAlignment="Right"
+                                    Command="{Binding LoadReferencesCommand}"
+                                    DockPanel.Dock="Right"
+                                    Style="{StaticResource MaterialDesignToolButton}"
+                                    ToolTip="새로고침">
+                                    <materialDesign:PackIcon Kind="Refresh" />
+                                </Button>
+                            </DockPanel>
+                            <ListBox
+                                MaxHeight="120"
+                                Margin="0,0,0,6"
+                                ItemsSource="{Binding References}"
+                                SelectedItem="{Binding SelectedReference}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon
+                                                Margin="0,0,6,0"
+                                                VerticalAlignment="Center"
+                                                Kind="FileDocumentOutline" />
+                                            <TextBlock VerticalAlignment="Center" Text="{Binding Name}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <WrapPanel>
+                                <Button
+                                    Margin="0,0,6,6"
+                                    Command="{Binding ImportCharacterCommand}"
+                                    Content="인물로 추가"
+                                    Style="{StaticResource MaterialDesignRaisedButton}" />
+                                <Button
+                                    Margin="0,0,6,6"
+                                    Command="{Binding IncludeReferenceCommand}"
+                                    Content="설정에 참조"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}" />
+                                <Button
+                                    Margin="0,0,0,6"
+                                    Command="{Binding ClearReferenceNotesCommand}"
+                                    Content="참조 비우기"
+                                    Style="{StaticResource MaterialDesignFlatButton}" />
+                            </WrapPanel>
+                            <TextBox
+                                MaxHeight="80"
+                                materialDesign:HintAssist.Hint="생성 참조 메모 (인물·배경 묘사 등, 생성 시 반영)"
+                                AcceptsReturn="True"
+                                IsReadOnly="True"
+                                Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                Text="{Binding Project.ReferenceNotes}"
+                                TextWrapping="Wrap"
+                                VerticalScrollBarVisibility="Auto" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
+        </DockPanel>
 
         <!--  중: 트리 + 편집 버튼  -->
         <DockPanel
@@ -256,6 +302,12 @@
                 DockPanel.Dock="Top"
                 FontWeight="Bold"
                 Text="구조" />
+            <Button
+                Margin="0,0,0,8"
+                Command="{Binding GenerateChaptersCommand}"
+                Content="장 구성 생성 (AI)"
+                DockPanel.Dock="Top"
+                Style="{StaticResource MaterialDesignRaisedButton}" />
             <WrapPanel Margin="0,8,0,0" DockPanel.Dock="Bottom">
                 <Button
                     Margin="0,0,6,6"
@@ -283,14 +335,33 @@
                 <TreeView.Resources>
                     <HierarchicalDataTemplate DataType="{x:Type models:ChapterNode}" ItemsSource="{Binding Scenes}">
                         <!--  Scene으로 분할된 장은 하이라이트 표시 (기본은 강조, Scene 0개면 해제)  -->
-                        <Border x:Name="ChapterRow" Padding="4,1" Background="#3329B6F6" CornerRadius="4">
+                        <Border
+                            x:Name="ChapterRow"
+                            Padding="4,1"
+                            Background="#3329B6F6"
+                            CornerRadius="4">
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon
                                     x:Name="ChapterIcon"
                                     Margin="0,0,4,0"
                                     VerticalAlignment="Center"
                                     Kind="BookCheck" />
-                                <TextBlock x:Name="ChapterTitle" FontWeight="Bold" Text="{Binding Title}" />
+                                <Border
+                                    Margin="0,0,5,0"
+                                    Padding="4,0"
+                                    VerticalAlignment="Center"
+                                    Background="#5529B6F6"
+                                    CornerRadius="7"
+                                    Visibility="{Binding Phase, Converter={StaticResource StringToVis}}">
+                                    <TextBlock
+                                        FontSize="10"
+                                        FontWeight="SemiBold"
+                                        Text="{Binding Phase}" />
+                                </Border>
+                                <TextBlock
+                                    x:Name="ChapterTitle"
+                                    FontWeight="Bold"
+                                    Text="{Binding Title}" />
                             </StackPanel>
                         </Border>
                         <HierarchicalDataTemplate.Triggers>
@@ -349,6 +420,18 @@
                         FontSize="16"
                         FontWeight="Bold"
                         Text="장 편집" />
+                    <Border
+                        Margin="0,0,0,8"
+                        Padding="8,3"
+                        HorizontalAlignment="Left"
+                        Background="{DynamicResource PrimaryHueMidBrush}"
+                        CornerRadius="10">
+                        <TextBlock
+                            FontSize="12"
+                            FontWeight="SemiBold"
+                            Foreground="{DynamicResource PrimaryHueMidForegroundBrush}"
+                            Text="{Binding SelectedChapter.Phase, StringFormat=이야기 단계: {0}}" />
+                    </Border>
                     <TextBox
                         Margin="0,0,0,8"
                         materialDesign:HintAssist.Hint="제목"
@@ -476,8 +559,15 @@
 
                         <!--  씬 삽화 (이미지 생성) — 등장인물 외형 자동 반영  -->
                         <Separator Margin="0,12,0,8" />
-                        <TextBlock Margin="0,0,0,6" FontWeight="Bold" Text="🖼 삽화 (이미지 생성)" />
-                        <TextBlock Margin="0,0,0,6" FontSize="11" Opacity="0.8" Text="{Binding ImageServerStatus}" />
+                        <TextBlock
+                            Margin="0,0,0,6"
+                            FontWeight="Bold"
+                            Text="🖼 삽화 (이미지 생성)" />
+                        <TextBlock
+                            Margin="0,0,0,6"
+                            FontSize="11"
+                            Opacity="0.8"
+                            Text="{Binding ImageServerStatus}" />
                         <TextBox
                             MinHeight="44"
                             Margin="0,0,0,6"

@@ -16,6 +16,9 @@ public static class RichTextBoxHelpers
 {
     private static readonly Regex ImageTokenRegex = new(@"⟦IMG:(.+?)⟧", RegexOptions.Compiled);
 
+    // 줄 전체가 이미지 토큰 하나뿐인 경우(가운데 정렬 대상)
+    private static readonly Regex PureImageLineRegex = new(@"^\s*⟦IMG:(.+?)⟧\s*$", RegexOptions.Compiled);
+
     /// <summary>
     /// 상대경로 이미지 토큰을 해석할 기준 폴더입니다. (현재 작품 폴더) — 이식성을 위해 상대경로 저장을 지원합니다.
     /// </summary>
@@ -211,21 +214,51 @@ public static class RichTextBoxHelpers
     public static void SetPlainText(RichTextBox richTextBox, string text)
     {
         var lines = (text ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        var blocks = richTextBox.Document.Blocks;
+        blocks.Clear();
 
-        // 대용량 문서에서 문단(Paragraph)을 수천 개 만들면 매우 느리므로,
-        // 단일 문단 안에서 LineBreak로 줄바꿈을 표현합니다.
-        var paragraph = new Paragraph { Margin = new Thickness(0) };
-        for (var i = 0; i < lines.Length; i++)
+        // 텍스트 줄은 성능을 위해 하나의 문단에 LineBreak로 모으고,
+        // '이미지 단독 줄'은 가운데 정렬된 별도 문단으로 렌더링합니다.
+        Paragraph? textParagraph = null;
+
+        foreach (var line in lines)
         {
-            AppendLineWithImages(paragraph, lines[i]);
-            if (i < lines.Length - 1)
+            var pure = PureImageLineRegex.Match(line);
+            if (pure.Success)
             {
-                paragraph.Inlines.Add(new LineBreak());
+                if (textParagraph is not null)
+                {
+                    blocks.Add(textParagraph);
+                    textParagraph = null;
+                }
+
+                var imageParagraph = new Paragraph
+                {
+                    Margin = new Thickness(0),
+                    TextAlignment = TextAlignment.Center
+                };
+                imageParagraph.Inlines.Add(CreateImageInline(pure.Groups[1].Value));
+                blocks.Add(imageParagraph);
+            }
+            else
+            {
+                if (textParagraph is null)
+                {
+                    textParagraph = new Paragraph { Margin = new Thickness(0) };
+                }
+                else
+                {
+                    textParagraph.Inlines.Add(new LineBreak());
+                }
+
+                AppendLineWithImages(textParagraph, line);
             }
         }
 
-        richTextBox.Document.Blocks.Clear();
-        richTextBox.Document.Blocks.Add(paragraph);
+        if (textParagraph is not null)
+        {
+            blocks.Add(textParagraph);
+        }
     }
 
     // 한 줄을 텍스트/이미지 토큰으로 나눠 Inline으로 추가합니다.

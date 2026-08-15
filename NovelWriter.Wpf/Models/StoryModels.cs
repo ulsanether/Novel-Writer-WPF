@@ -63,6 +63,9 @@ public partial class ChapterNode : ObservableObject
     [ObservableProperty] private string _reveal = string.Empty;
     [ObservableProperty] private string _ending = string.Empty;
 
+    /// <summary>이야기 단계(발단·전개·위기·절정·결말)입니다.</summary>
+    [ObservableProperty] private string _phase = string.Empty;
+
     /// <summary>하위 Scene 목록입니다.</summary>
     public ObservableCollection<SceneNode> Scenes { get; set; } = new();
 }

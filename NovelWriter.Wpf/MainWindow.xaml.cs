@@ -397,13 +397,13 @@ public partial class MainWindow : Window
 
     private void OnOpenSettings(object sender, RoutedEventArgs e)
     {
-        var window = new SettingsWindow(_viewModel) { Owner = this };
+        var window = new SettingsHubWindow(_viewModel, SettingsHubWindow.TabGeneral) { Owner = this };
         window.ShowDialog();
     }
 
     private void OnOpenImageServer(object sender, RoutedEventArgs e)
     {
-        var window = new ImageServerWindow(_viewModel) { Owner = this };
+        var window = new SettingsHubWindow(_viewModel, SettingsHubWindow.TabImage) { Owner = this };
         window.ShowDialog();
     }
 
@@ -449,7 +449,7 @@ public partial class MainWindow : Window
         var window = new ReferenceGeneratorWindow(viewModel) { Owner = this };
         viewModel.OpenImageServerSettings = () =>
         {
-            var imageWindow = new ImageServerWindow(_viewModel) { Owner = window };
+            var imageWindow = new SettingsHubWindow(_viewModel, SettingsHubWindow.TabImage) { Owner = window };
             imageWindow.ShowDialog();
         };
         viewModel.LaunchImageServerCallback = () => _viewModel.LaunchImageServerCommand.Execute(null);
@@ -472,7 +472,7 @@ public partial class MainWindow : Window
 
     private void OnOpenThemeCustom(object sender, RoutedEventArgs e)
     {
-        var window = new ThemeCustomWindow(_viewModel) { Owner = this };
+        var window = new SettingsHubWindow(_viewModel, SettingsHubWindow.TabTheme) { Owner = this };
         window.ShowDialog();
     }
 
@@ -509,7 +509,7 @@ public partial class MainWindow : Window
         // 삽화 구역에서 바로 이미지 서버 설정 창을 열 수 있게 콜백 주입
         viewModel.OpenImageServerSettings = () =>
         {
-            var imageWindow = new ImageServerWindow(_viewModel) { Owner = window };
+            var imageWindow = new SettingsHubWindow(_viewModel, SettingsHubWindow.TabImage) { Owner = window };
             imageWindow.ShowDialog();
         };
         // 삽화 구역에서 바로 서버를 실행할 수 있게 메인 뷰모델의 실행 로직 재사용
@@ -641,6 +641,26 @@ public partial class MainWindow : Window
         var prefix = off > 0 && content[off - 1] != '\n' ? "\n" : string.Empty;
         var insert = prefix + token + "\n";
         _viewModel.Content = content[..off] + insert + content[off..];
+    }
+
+    private double _editorZoom = 1.0;
+
+    /// <summary>
+    /// Ctrl + 마우스 휠로 편집기를 확대/축소합니다. (폰트 크기 설정과 무관한 시각 확대)
+    /// </summary>
+    private void EditorOnPreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+    {
+        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != System.Windows.Input.ModifierKeys.Control)
+        {
+            return; // Ctrl이 아니면 일반 스크롤
+        }
+
+        e.Handled = true;
+        _editorZoom += e.Delta > 0 ? 0.1 : -0.1;
+        _editorZoom = Math.Clamp(_editorZoom, 0.5, 3.0);
+        EditorScale.ScaleX = _editorZoom;
+        EditorScale.ScaleY = _editorZoom;
+        _viewModel.StatusMessage = $"확대 {Math.Round(_editorZoom * 100)}%";
     }
 
     private void Window_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)

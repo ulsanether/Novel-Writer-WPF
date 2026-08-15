@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -82,6 +83,111 @@ public partial class ReferenceGeneratorViewModel : ObservableObject
     /// <summary>이미지 서버 연결 상태 메시지입니다.</summary>
     [ObservableProperty]
     private string _imageServerStatus = "이미지 서버 상태: 미확인";
+
+    private static readonly Random Rng = new();
+
+    private static readonly string[] ThemeSeeds =
+    {
+        "복수", "성장", "사랑", "배신", "생존", "비밀", "권력", "희생", "모험", "구원",
+        "상실", "정체성", "운명", "자유", "광기", "속죄", "야망", "고독", "재회", "몰락"
+    };
+
+    /// <summary>
+    /// 선택한 유형에 맞는 제목과 요청 내용을 AI로 무작위 자동 생성합니다. (아이디어 도우미)
+    /// </summary>
+    [RelayCommand]
+    private async Task AutoFillAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = "제목·요청 내용을 무작위로 생성하는 중...";
+
+        try
+        {
+            var theme = ThemeSeeds[Rng.Next(ThemeSeeds.Length)];
+            var salt = Rng.Next(1000, 9999);
+            var system = "당신은 소설 창작 아이디어 도우미입니다. 요청한 JSON 객체 하나만 출력하고 다른 말·설명·코드펜스를 절대 쓰지 마세요. 모든 값은 한국어로 작성하세요.";
+            var user = $"유형: {DocType}\n무작위 시드: {salt}\n참고 테마(참고만): {theme}\n\n"
+                + "[요청] 위 유형에 어울리는 참신하고 흥미로운 소재를 '무작위로' 하나 지어내세요. "
+                + "캐릭터 계열이면 title에 실제 등장인물 이름(한국어)을 짓고, 그 외에는 소재를 잘 나타내는 제목을 지으세요. "
+                + "다음 JSON만 출력: {\"title\": \"제목(또는 인물 이름)\", \"request\": \"생성기에 넣을 구체적 요청 문장 2~4개(핵심 설정 포함)\"}. "
+                + "매번 서로 다른 새로운 소재를 만드세요.";
+
+            var reply = await _chat.AskAsync(new[]
+            {
+                new ChatTurn("system", system),
+                new ChatTurn("user", user)
+            });
+
+            if (TryParseTitleRequest(reply, out var title, out var request))
+            {
+                Title = title;
+                Prompt = request;
+                StatusMessage = "제목·요청을 채웠습니다. 필요하면 수정 후 [AI 생성]을 누르세요.";
+            }
+            else if (!string.IsNullOrWhiteSpace(reply))
+            {
+                // JSON 파싱 실패 시 응답 전체를 요청으로 사용
+                Prompt = reply.Trim();
+                StatusMessage = "요청 내용을 채웠습니다. 제목을 확인하고 [AI 생성]을 누르세요.";
+            }
+            else
+            {
+                StatusMessage = "자동 생성 실패. AI 서버(Ollama)를 확인하세요.";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "오류: " + ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    // AI 응답에서 {"title":..,"request":..} 를 추출합니다.
+    private static bool TryParseTitleRequest(string? reply, out string title, out string request)
+    {
+        title = string.Empty;
+        request = string.Empty;
+        if (string.IsNullOrWhiteSpace(reply))
+        {
+            return false;
+        }
+
+        var start = reply.IndexOf('{');
+        var end = reply.LastIndexOf('}');
+        if (start < 0 || end <= start)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(reply.Substring(start, end - start + 1));
+            var root = doc.RootElement;
+            if (root.TryGetProperty("title", out var t))
+            {
+                title = t.GetString()?.Trim() ?? string.Empty;
+            }
+
+            if (root.TryGetProperty("request", out var r))
+            {
+                request = r.GetString()?.Trim() ?? string.Empty;
+            }
+
+            return !string.IsNullOrWhiteSpace(request);
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     /// <summary>
     /// AI로 참고자료 내용을 마크다운으로 생성합니다.
