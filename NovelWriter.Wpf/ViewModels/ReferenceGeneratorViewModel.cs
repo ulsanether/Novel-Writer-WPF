@@ -409,7 +409,28 @@ public partial class ReferenceGeneratorViewModel : ObservableObject
 
             var stylePrefix = string.IsNullOrWhiteSpace(StylePrefix) ? "storybook illustration, detailed" : StylePrefix;
             var fullPrompt = $"{stylePrefix}, {CompositionHintFor(DocType)}{ImagePrompt}";
-            var result = await _imageBackend.GenerateAsync(fullPrompt);
+
+            // 설정 시트는 여러 뷰가 가로로 배치되므로 넓은 캔버스로 임시 전환 후 복원
+            var prevW = _imageBackend.Width;
+            var prevH = _imageBackend.Height;
+            var sheet = SheetResolutionFor(DocType);
+            if (sheet is { } s)
+            {
+                _imageBackend.Width = s.Width;
+                _imageBackend.Height = s.Height;
+            }
+
+            ImageGenResult? result;
+            try
+            {
+                result = await _imageBackend.GenerateAsync(fullPrompt);
+            }
+            finally
+            {
+                _imageBackend.Width = prevW;
+                _imageBackend.Height = prevH;
+            }
+
             if (result is null)
             {
                 StatusMessage = "이미지 생성 실패 — 이미지 서버가 실행 중이 아니거나 모델이 없습니다. [서버 실행]/[서버 설정] 확인.";
@@ -444,20 +465,37 @@ public partial class ReferenceGeneratorViewModel : ObservableObject
         });
     }
 
-    // 유형별 구도 힌트를 반환합니다. (화풍은 StylePrefix가 담당)
+    // 유형별 구도 힌트를 반환합니다. (화풍은 StylePrefix가 담당) — 영화/애니 설정 시트 스타일
     private static string CompositionHintFor(string docType)
     {
         if (docType.Contains("캐릭터"))
         {
-            return "character reference sheet, full body, ";
+            // 캐릭터 모델 시트: 여러 각도의 얼굴 + 전신 앞/뒤/측면 포즈 (턴어라운드)
+            return "character reference sheet, character model sheet, character turnaround, "
+                + "multiple views of the same character, full body front view, full body back view, full body side view, "
+                + "three quarter view, T-pose, head close-ups from multiple angles, "
+                + "facial expression sheet, consistent character design, model sheet layout, "
+                + "reference grid, clean plain background, concept art, ";
         }
 
         if (docType.Contains("장소") || docType.Contains("배경") || docType.Contains("풍경"))
         {
-            return "scenery, background art, wide shot, ";
+            // 배경 디자인 시트: 여러 각도의 같은 장소
+            return "environment design sheet, background concept art, location reference sheet, "
+                + "multiple angle views of the same place, wide establishing shot, "
+                + "layout sheet, clean presentation, concept art, ";
         }
 
-        return string.Empty;
+        // 그 외(세계관·소품·용어 등): 디자인/설정 시트
+        return "reference design sheet, model sheet, multiple views, "
+            + "concept art layout, orthographic views, clean plain background, ";
+    }
+
+    // 설정 시트는 여러 뷰가 가로로 배치되므로 넓은 캔버스가 유리합니다. (해상도 override)
+    private static (int Width, int Height)? SheetResolutionFor(string docType)
+    {
+        // 캐릭터 턴어라운드/디자인 시트는 가로로 넓게
+        return new(1216, 832);
     }
 
     // 유형별 이미지 저장 하위 폴더를 반환합니다.

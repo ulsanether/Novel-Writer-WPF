@@ -16,22 +16,24 @@
 
 
 <p align="center">
-  <img src="Img/01.png" width="50%" style="margin: 5px;">
-  <img src="Img/02.png" width="50%" style="margin: 5px;"><br>
-  <img src="Img/03.png" width="50%" style="margin: 5px;">
+  <img src="Img/01.png" width="60%" style="margin: 5px;">
+  <img src="Img/02.png" width="60%" style="margin: 5px;"><br>
+  <img src="Img/03.png" width="60%" style="margin: 5px;">
 </p>
 <p align="center"> 
-  <img src="Img/04.png" width="50%" style="margin: 5px;"><br>
-  <img src="Img/05.png" width="50%" style="margin: 5px;">
+  <img src="Img/04.png" width="60%" style="margin: 5px;"><br>
+  <img src="Img/05.png" width="60%" style="margin: 5px;">
+    <img src="Img/05_1.png" width="60%" style="margin: 5px;">
  </p>
  
   <p align="center"> 
-  <img src="Img/06.png" width="50%" style="margin: 5px;"><br>
-  <img src="Img/07.png" width="50%" style="margin: 5px;">
+  <img src="Img/06.png" width="60%" style="margin: 5px;"><br>
+  <img src="Img/07.png" width="60%" style="margin: 5px;">
 </p>
   <p align="center"> 
-  <img src="Img/08.png" width="50%" style="margin: 5px;"><br>
-  <img src="Img/09.png" width="50%" style="margin: 5px;">
+  <img src="Img/08.png" width="60%" style="margin: 5px;"><br>
+  <img src="Img/09.png" width="60%" style="margin: 5px;">
+    <img src="Img/10.png" width="60%" style="margin: 5px;">
 </p>
 
 
