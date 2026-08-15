@@ -164,6 +164,14 @@
                                         HorizontalAlignment="Left"
                                         Source="{Binding ReferenceImagePath, Converter={StaticResource PathToImage}}"
                                         Stretch="Uniform" />
+                                    <Button
+                                        Margin="0,4,0,0"
+                                        HorizontalAlignment="Left"
+                                        Padding="8,2"
+                                        Command="{Binding DataContext.InsertCharacterImageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}"
+                                        Content="본문에 삽입"
+                                        Style="{StaticResource MaterialDesignOutlinedButton}" />
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
@@ -478,12 +486,18 @@
                             Style="{StaticResource MaterialDesignOutlinedTextBox}"
                             Text="{Binding SelectedScene.IllustrationPrompt}"
                             TextWrapping="Wrap" />
-                        <Button
-                            Margin="0,0,0,8"
-                            HorizontalAlignment="Left"
-                            Command="{Binding GenerateSceneImageCommand}"
-                            Content="삽화 생성"
-                            Style="{StaticResource MaterialDesignRaisedButton}" />
+                        <StackPanel Margin="0,0,0,8" Orientation="Horizontal">
+                            <Button
+                                Margin="0,0,6,0"
+                                Command="{Binding GenerateSceneImageCommand}"
+                                Content="삽화 생성"
+                                Style="{StaticResource MaterialDesignRaisedButton}" />
+                            <Button
+                                Command="{Binding InsertSceneImageCommand}"
+                                Content="본문에 삽입"
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                ToolTip="생성된 삽화를 원고 본문(커서 위치)에 삽입합니다." />
+                        </StackPanel>
                         <Image
                             MaxHeight="340"
                             Margin="0,4"

@@ -82,12 +82,18 @@
                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
                     Text="{Binding ImagePrompt}"
                     TextWrapping="Wrap" />
-                <Button
-                    Margin="0,0,0,6"
-                    HorizontalAlignment="Left"
-                    Command="{Binding GenerateImageCommand}"
-                    Content="이미지 생성"
-                    Style="{StaticResource MaterialDesignRaisedButton}" />
+                <StackPanel Margin="0,0,0,6" Orientation="Horizontal">
+                    <Button
+                        Margin="0,0,6,0"
+                        Command="{Binding GenerateImageCommand}"
+                        Content="이미지 생성"
+                        Style="{StaticResource MaterialDesignRaisedButton}" />
+                    <Button
+                        Command="{Binding InsertImageCommand}"
+                        Content="본문에 삽입"
+                        Style="{StaticResource MaterialDesignOutlinedButton}"
+                        ToolTip="생성된 이미지를 원고 본문에 삽입합니다." />
+                </StackPanel>
                 <Image
                     MaxHeight="200"
                     HorizontalAlignment="Left"

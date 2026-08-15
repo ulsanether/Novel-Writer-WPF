@@ -23,6 +23,9 @@ public partial class StoryPlannerViewModel : ObservableObject
     /// </summary>
     public Action<string>? InsertToEditor { get; set; }
 
+    /// <summary>생성 이미지를 메인 에디터 본문에 삽입하는 콜백입니다. (경로)</summary>
+    public Action<string>? InsertImageToEditor { get; set; }
+
     /// <summary>"다른 이름으로 저장" 경로 선택 콜백입니다.</summary>
     public Func<Task<string?>>? SaveAsPathResolver { get; set; }
 
@@ -288,6 +291,26 @@ public partial class StoryPlannerViewModel : ObservableObject
     /// </summary>
     [RelayCommand]
     private void OpenImageServer() => OpenImageServerSettings?.Invoke();
+
+    /// <summary>선택 씬의 삽화를 본문에 삽입합니다.</summary>
+    [RelayCommand]
+    private void InsertSceneImage()
+    {
+        if (SelectedScene is { IllustrationPath: { Length: > 0 } path })
+        {
+            InsertImageToEditor?.Invoke(path);
+        }
+    }
+
+    /// <summary>캐릭터 이미지를 본문에 삽입합니다.</summary>
+    [RelayCommand]
+    private void InsertCharacterImage(StoryCharacter? character)
+    {
+        if (character is { ReferenceImagePath: { Length: > 0 } path })
+        {
+            InsertImageToEditor?.Invoke(path);
+        }
+    }
 
     /// <summary>
     /// 이미지 모델을 준비합니다. (없으면 자동 다운로드)

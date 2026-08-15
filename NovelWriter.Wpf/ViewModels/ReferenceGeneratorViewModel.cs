@@ -30,6 +30,9 @@ public partial class ReferenceGeneratorViewModel : ObservableObject
     /// <summary>생성 전 이미지 모델 준비(없으면 자동 다운로드) 콜백입니다. (true=준비됨)</summary>
     public Func<Task<bool>>? EnsureImageModel { get; set; }
 
+    /// <summary>생성 이미지를 메인 에디터 본문에 삽입하는 콜백입니다. (경로)</summary>
+    public Action<string>? InsertImageToEditor { get; set; }
+
     /// <summary>
     /// 뷰모델을 초기화합니다.
     /// </summary>
@@ -218,6 +221,16 @@ public partial class ReferenceGeneratorViewModel : ObservableObject
     /// <summary>이미지 서버 설정 창을 엽니다.</summary>
     [RelayCommand]
     private void OpenImageServer() => OpenImageServerSettings?.Invoke();
+
+    /// <summary>생성된 이미지를 본문에 삽입합니다.</summary>
+    [RelayCommand]
+    private void InsertImage()
+    {
+        if (!string.IsNullOrWhiteSpace(GeneratedImagePath))
+        {
+            InsertImageToEditor?.Invoke(GeneratedImagePath);
+        }
+    }
 
     /// <summary>이미지 서버를 실행하고 잠시 후 연결을 확인합니다.</summary>
     [RelayCommand]

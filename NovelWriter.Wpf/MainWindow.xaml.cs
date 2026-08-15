@@ -224,6 +224,9 @@ public partial class MainWindow : Window
             return;
         }
 
+        // 상대경로 이미지 토큰을 현재 작품 폴더 기준으로 렌더링
+        RichTextBoxHelpers.ImageBaseFolder = _novelProjectService.CurrentFolder;
+
         _syncingEditor = true;
         RichTextBoxHelpers.SetPlainText(EditorTextBox, _viewModel.Content ?? string.Empty);
         _syncingEditor = false;
@@ -409,6 +412,7 @@ public partial class MainWindow : Window
         var viewModel = new ReferenceGeneratorViewModel(_chatService, _imageService, _viewModel.ReferenceFolderPath)
         {
             StylePrefix = _viewModel.CurrentStylePrefix,
+            InsertImageToEditor = InsertImageIntoEditor,
             SavePathResolver = (suggested, subFolder) =>
             {
                 // 기본 저장 위치를 참고자료 폴더의 유형별 하위 폴더로 (폴더로 자동 분류)
@@ -479,7 +483,8 @@ public partial class MainWindow : Window
                     ? text
                     : _viewModel.Content + "\n\n" + text;
             },
-            GetManuscript = () => _viewModel.Content ?? string.Empty
+            GetManuscript = () => _viewModel.Content ?? string.Empty,
+            InsertImageToEditor = InsertImageIntoEditor
         };
 
         var window = new StoryPlannerWindow(viewModel) { Owner = this };
@@ -575,6 +580,37 @@ public partial class MainWindow : Window
 
         _forceClose = true; // No이거나 저장 완료 → 실제로 닫기
         Close();
+    }
+
+    /// <summary>
+    /// 생성된 이미지를 본문(에디터) 커서 위치에 삽입합니다. (평문 토큰으로 저장되어 프로젝트에 보존됨)
+    /// </summary>
+    private void InsertImageIntoEditor(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        var content = _viewModel.Content ?? string.Empty;
+        int off;
+        try
+        {
+            off = RichTextBoxHelpers.GetOffset(EditorTextBox, EditorTextBox.CaretPosition);
+        }
+        catch
+        {
+            off = content.Length;
+        }
+
+        off = Math.Clamp(off, 0, content.Length);
+        // 이식성을 위해 작품 폴더 안의 이미지는 상대경로로 저장
+        RichTextBoxHelpers.ImageBaseFolder = _novelProjectService.CurrentFolder;
+        var token = RichTextBoxHelpers.ImageToken(RichTextBoxHelpers.ToPortablePath(path));
+        // 이미지를 새 줄에 배치되도록 앞뒤로 개행을 보정합니다.
+        var prefix = off > 0 && content[off - 1] != '\n' ? "\n" : string.Empty;
+        var insert = prefix + token + "\n";
+        _viewModel.Content = content[..off] + insert + content[off..];
     }
 
     private void Window_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
