@@ -117,17 +117,20 @@ public sealed class StoryPlannerService
         StoryProject project, ChapterNode chapter, SceneNode scene, string previousSceneSummary, int dialogueRatio = 50)
     {
         const string system =
-            "당신은 소설가입니다. 주어진 설정과 Scene 조건에 맞는 '본문'을 한국어로 작성하세요. "
-            + "설정을 벗어나거나 금지사항을 위반하지 마세요. 자연스러운 소설 문장으로만 작성하고, 메타 설명은 넣지 마세요.";
+            "당신은 소설가입니다. 주어진 설정과 Scene 조건에 맞는 '소설 본문'을 한국어로 작성하세요. "
+            + "설정을 벗어나거나 금지사항을 위반하지 마세요. "
+            + "매우 중요: '제목/요약/목표/등장인물/장소/갈등/결과' 같은 설정 항목이나 목록·머리말·라벨을 절대 출력하지 말고, "
+            + "오직 장면의 서술과 인물의 대사로 이루어진 소설 본문만 작성하세요.";
         var user = BuildBible(project)
             + $"\n\n[전체 시놉시스 요약]\n{Shorten(project.Synopsis, 500)}\n\n"
             + $"[현재 장]\n{chapter.Title} — {chapter.Summary}\n\n"
             + (string.IsNullOrWhiteSpace(previousSceneSummary) ? string.Empty : $"[이전 Scene]\n{previousSceneSummary}\n\n")
-            + $"[작성할 Scene]\n제목: {scene.Title}\n목표: {scene.Goal}\n등장인물: {scene.Characters}\n장소: {scene.Location}\n갈등: {scene.Conflict}\n결과: {scene.Result}\n\n"
+            + $"[작성할 Scene 조건 — 이 항목들은 참고만 하고 본문에 옮겨 적지 마세요]\n제목: {scene.Title}\n목표: {scene.Goal}\n등장인물: {scene.Characters}\n장소: {scene.Location}\n갈등: {scene.Conflict}\n결과: {scene.Result}\n\n"
             + $"[문체 지시]\n{DialogueStyleInstruction(dialogueRatio)}\n\n"
-            + "[요청] 위 Scene의 본문을 작성하세요.";
+            + "[요청] 위 조건을 반영하되, 항목을 나열하지 말고 소설 본문만 작성하세요.";
 
-        return await EnsureKoreanAsync(await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) }));
+        var reply = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });
+        return await EnsureKoreanAsync(StripSceneMeta(reply));
     }
 
     /// <summary>
@@ -173,7 +176,8 @@ public sealed class StoryPlannerService
             const string system =
                 "당신은 소설가입니다. 주어진 '비트(장면 조각)'를 서너 문단 이상의 생생한 소설 본문으로 작성하세요. "
                 + "인물의 대사·행동·심리·배경 묘사를 충분히 넣어 길고 몰입감 있게 쓰세요. "
-                + "설정과 금지사항을 지키고, 자연스러운 소설 문장으로만 작성하세요. 한국어로 작성합니다.";
+                + "매우 중요: '제목/목표/등장인물/장소/갈등/결과' 같은 설정 항목이나 라벨·목록을 절대 출력하지 말고, 오직 소설 본문만 쓰세요. "
+                + "설정과 금지사항을 지키고, 자연스러운 소설 문장으로만 작성합니다. 한국어로 작성합니다.";
             var user = BuildBible(project)
                 + $"\n\n[현재 장]\n{chapter.Title} — {chapter.Summary}\n"
                 + $"[현재 Scene]\n{scene.Title} / 목표: {scene.Goal} / 장소: {scene.Location} / 등장인물: {scene.Characters}\n\n"
@@ -182,9 +186,10 @@ public sealed class StoryPlannerService
                 + $"[이번에 쓸 비트]\n{beats[i]}\n\n[요청] 이 비트를 이어지는 소설 본문으로 길게 작성하세요.";
 
             var prose = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });
-            if (!string.IsNullOrWhiteSpace(prose))
+            var cleaned = StripSceneMeta(prose);
+            if (!string.IsNullOrWhiteSpace(cleaned))
             {
-                var korean = await EnsureKoreanAsync(prose);
+                var korean = await EnsureKoreanAsync(cleaned);
                 builder.Append(korean.Trim()).Append("\n\n");
                 previousProse = korean;
             }
@@ -348,6 +353,27 @@ public sealed class StoryPlannerService
     // 3글자 이상 연속된 영단어를 감지합니다. (약어/짧은 기호는 무시)
     private static readonly Regex EnglishWordRegex = new("[A-Za-z]{3,}", RegexOptions.Compiled);
 
+    // Scene 편집 항목이 본문에 그대로 새어 나온 줄(예: "목표:", "**등장인물**:", "- 장소:")을 감지합니다.
+    // 앞에 붙는 글머리표(*, -, 숫자., #)와 굵게(**)를 허용합니다.
+    private static readonly Regex SceneMetaLineRegex = new(
+        @"^\s*[\*\#\-\d\.\)\s]*\**\s*(제목|요약|목표|목적|등장\s*인물|인물|장소|배경|갈등|결과|시작\s*상태|시작|종료\s*상태|종료|반전|다음\s*(Scene|씬|장면)?\s*연결|비트|Scene|씬|장면)\s*\**\s*[:：]",
+        RegexOptions.Compiled);
+
+    /// <summary>
+    /// 본문에 섞여 나온 Scene 설정 항목 줄(제목/목표/등장인물/장소/갈등/결과 등)을 제거합니다.
+    /// </summary>
+    private static string StripSceneMeta(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        var lines = text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        var kept = lines.Where(line => !SceneMetaLineRegex.IsMatch(line));
+        return string.Join("\n", kept).Trim();
+    }
+
     /// <summary>
     /// 텍스트에 영어가 섞여 있으면 한국어로 재번역합니다. (없으면 그대로 반환 · AI 호출 없음)
     /// </summary>
@@ -412,7 +438,40 @@ public sealed class StoryPlannerService
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(p.ReferenceNotes))
+        {
+            sb.AppendLine("[참고자료]");
+            sb.AppendLine(Shorten(p.ReferenceNotes, 2500));
+        }
+
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// 참고자료(마크다운)에서 등장인물 1명의 정보를 추출합니다.
+    /// </summary>
+    public async Task<StoryCharacter?> ExtractCharacterAsync(string markdown)
+    {
+        const string system = "당신은 소설 분석가입니다. 요청한 JSON 객체만 출력하고 다른 설명은 절대 쓰지 마세요. 모든 값은 반드시 한국어로 작성하세요.";
+        var user = "[참고자료]\n" + Shorten(markdown, 6000)
+            + "\n\n[요청] 이 자료에 나온 등장인물 1명의 정보를 JSON 객체로 출력하세요. 키: "
+            + "\"name\"(이름), \"personality\"(성격), \"goal\"(목표), \"secret\"(비밀), \"relationships\"(관계). JSON 객체만 출력하세요.";
+
+        var reply = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });
+        var root = ParseJsonObject(reply);
+        if (root is null)
+        {
+            return null;
+        }
+
+        return new StoryCharacter
+        {
+            Name = await EnsureKoreanAsync(GetString(root.Value, "name")),
+            Personality = await EnsureKoreanAsync(GetString(root.Value, "personality")),
+            Goal = await EnsureKoreanAsync(GetString(root.Value, "goal")),
+            Secret = await EnsureKoreanAsync(GetString(root.Value, "secret")),
+            Relationships = await EnsureKoreanAsync(GetString(root.Value, "relationships"))
+        };
     }
 
     private static string Shorten(string? text, int max)

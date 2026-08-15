@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.RegularExpressions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NovelWriter.Wpf.Services;
@@ -12,8 +13,8 @@ public partial class ReferenceGeneratorViewModel : ObservableObject
 {
     private readonly ChatService _chat;
 
-    /// <summary>저장 경로 선택 콜백입니다.</summary>
-    public Func<string, Task<string?>>? SavePathResolver { get; set; }
+    /// <summary>저장 경로 선택 콜백입니다. (제안 파일명, 하위 폴더 이름)</summary>
+    public Func<string, string, Task<string?>>? SavePathResolver { get; set; }
 
     /// <summary>
     /// 뷰모델을 초기화합니다.
@@ -94,6 +95,68 @@ public partial class ReferenceGeneratorViewModel : ObservableObject
     }
 
     /// <summary>
+    /// 저장 파일명의 베이스를 만듭니다. (넘버링은 View가 앞에 붙임)
+    /// 캐릭터: 이름_나이_직업, 그 외: 제목.
+    /// </summary>
+    private string BuildFileNameBase()
+    {
+        if (DocType.Contains("캐릭터"))
+        {
+            var name = ExtractField("이름") ?? FirstHeading() ?? Title;
+            var age = ExtractField("나이");
+            var job = ExtractField("직업");
+
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(name)) parts.Add(name.Trim());
+            if (!string.IsNullOrWhiteSpace(age)) parts.Add(age.Trim());
+            if (!string.IsNullOrWhiteSpace(job)) parts.Add(job.Trim());
+
+            if (parts.Count > 0)
+            {
+                return string.Join("_", parts);
+            }
+        }
+
+        return string.IsNullOrWhiteSpace(Title) ? "reference" : Title;
+    }
+
+    /// <summary>생성 결과의 첫 제목(# ...)을 반환합니다.</summary>
+    private string? FirstHeading()
+    {
+        var m = Regex.Match(GeneratedContent ?? string.Empty, @"^\s*#+\s*(.+)$", RegexOptions.Multiline);
+        return m.Success ? m.Groups[1].Value.Trim() : null;
+    }
+
+    /// <summary>생성 결과에서 "라벨: 값" 또는 "- **라벨**: 값" 형태의 값을 추출합니다.</summary>
+    private string? ExtractField(string label)
+    {
+        var pattern = $@"[-*\s]*\**\s*{Regex.Escape(label)}\s*\**\s*[:：]\s*(.+)";
+        var m = Regex.Match(GeneratedContent ?? string.Empty, pattern);
+        if (!m.Success)
+        {
+            return null;
+        }
+
+        // 값에서 마크다운 강조·괄호 등 정리
+        var value = m.Groups[1].Value.Trim().TrimEnd('*', ' ', '.', ',');
+        // 나이는 숫자만 남기기 (예: "35세" → "35세" 유지, "약 30대" → 그대로)
+        return value.Length > 20 ? value[..20].Trim() : value;
+    }
+
+    /// <summary>
+    /// 유형에 맞는 하위 폴더 이름을 반환합니다. (폴더로 자동 분류)
+    /// </summary>
+    private static string SubFolderFor(string docType)
+    {
+        if (docType.Contains("캐릭터")) return "Characters";
+        if (docType.Contains("세계관")) return "World";
+        if (docType.Contains("장소") || docType.Contains("배경")) return "Backgrounds";
+        if (docType.Contains("시놉시스")) return "Synopsis";
+        if (docType.Contains("묘사") || docType.Contains("표현") || docType.Contains("문장") || docType.Contains("대사")) return "Descriptions";
+        return string.Empty;
+    }
+
+    /// <summary>
     /// 유형에 맞는 시스템 프롬프트를 만듭니다. (묘사·표현 계열은 소설 문장 특화)
     /// </summary>
     private string BuildSystemPrompt()
@@ -123,8 +186,7 @@ public partial class ReferenceGeneratorViewModel : ObservableObject
             return;
         }
 
-        var suggested = string.IsNullOrWhiteSpace(Title) ? "reference" : Title;
-        var path = await SavePathResolver(suggested);
+        var path = await SavePathResolver(BuildFileNameBase(), SubFolderFor(DocType));
         if (string.IsNullOrWhiteSpace(path))
         {
             return;

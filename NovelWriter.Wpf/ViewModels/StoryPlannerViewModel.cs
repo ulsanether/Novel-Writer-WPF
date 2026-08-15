@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NovelWriter.Wpf.Models;
@@ -13,6 +14,8 @@ public partial class StoryPlannerViewModel : ObservableObject
 {
     private readonly StoryProjectService _projectService;
     private readonly StoryPlannerService _plannerService;
+    private readonly ReferenceLibraryService _referenceLibraryService;
+    private readonly string _referenceFolder;
 
     /// <summary>
     /// Scene 본문을 메인 에디터에 삽입하기 위한 콜백입니다.
@@ -37,11 +40,77 @@ public partial class StoryPlannerViewModel : ObservableObject
     public StoryPlannerViewModel(
         StoryProject project,
         StoryProjectService projectService,
-        StoryPlannerService plannerService)
+        StoryPlannerService plannerService,
+        ReferenceLibraryService referenceLibraryService,
+        string referenceFolder)
     {
         _project = project;
         _projectService = projectService;
         _plannerService = plannerService;
+        _referenceLibraryService = referenceLibraryService;
+        _referenceFolder = referenceFolder ?? string.Empty;
+        LoadReferences();
+    }
+
+    /// <summary>참고자료 폴더의 문서 목록입니다.</summary>
+    public ObservableCollection<ReferenceDocument> References { get; } = new();
+
+    [ObservableProperty]
+    private ReferenceDocument? _selectedReference;
+
+    /// <summary>참고자료 폴더를 다시 스캔합니다.</summary>
+    [RelayCommand]
+    private void LoadReferences()
+    {
+        References.Clear();
+        foreach (var document in _referenceLibraryService.LoadFolder(_referenceFolder))
+        {
+            References.Add(document);
+        }
+    }
+
+    /// <summary>선택한 참고자료에서 등장인물을 추출해 추가합니다.</summary>
+    [RelayCommand]
+    private async Task ImportCharacterAsync()
+    {
+        if (SelectedReference is null)
+        {
+            return;
+        }
+
+        var reference = SelectedReference;
+        await RunAsync($"'{reference.Name}'에서 인물을 추출하는 중...", async () =>
+        {
+            var character = await _plannerService.ExtractCharacterAsync(reference.Content);
+            if (character is not null)
+            {
+                Project.Characters.Add(character);
+            }
+        });
+    }
+
+    /// <summary>선택한 참고자료를 생성 참조(ReferenceNotes)에 추가합니다.</summary>
+    [RelayCommand]
+    private void IncludeReference()
+    {
+        if (SelectedReference is null)
+        {
+            return;
+        }
+
+        var block = $"# {SelectedReference.Name}\n{SelectedReference.Content}";
+        Project.ReferenceNotes = string.IsNullOrWhiteSpace(Project.ReferenceNotes)
+            ? block
+            : Project.ReferenceNotes + "\n\n" + block;
+        StatusMessage = $"'{SelectedReference.Name}'을(를) 생성 참조에 추가했습니다.";
+    }
+
+    /// <summary>생성 참조(ReferenceNotes)를 비웁니다.</summary>
+    [RelayCommand]
+    private void ClearReferenceNotes()
+    {
+        Project.ReferenceNotes = string.Empty;
+        StatusMessage = "생성 참조를 비웠습니다.";
     }
 
     /// <summary>작품 설계 데이터입니다. (파일 열기로 교체 가능)</summary>
@@ -118,6 +187,8 @@ public partial class StoryPlannerViewModel : ObservableObject
                 SelectedScene = null;
                 break;
             case SceneNode scene:
+                // Scene 편집 패널은 부모 장 패널 안에 있으므로, 부모 장도 함께 선택해야 바로 표시됩니다.
+                SelectedChapter = Project.Chapters.FirstOrDefault(c => c.Scenes.Contains(scene)) ?? SelectedChapter;
                 SelectedScene = scene;
                 break;
         }
@@ -135,6 +206,50 @@ public partial class StoryPlannerViewModel : ObservableObject
         {
             Project.Characters.Remove(character);
         }
+    }
+
+    /// <summary>
+    /// 등장인물을 참고자료 폴더의 Characters 하위 폴더에 .md로 내보냅니다.
+    /// </summary>
+    [RelayCommand]
+    private async Task ExportCharacterAsync(StoryCharacter? character)
+    {
+        if (character is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_referenceFolder) || !Directory.Exists(_referenceFolder))
+        {
+            StatusMessage = "참고자료 폴더가 없습니다. 참고자료 서랍에서 폴더를 먼저 지정하세요.";
+            return;
+        }
+
+        var directory = Path.Combine(_referenceFolder, "Characters");
+        Directory.CreateDirectory(directory);
+
+        var safeName = MakeSafeFileName(string.IsNullOrWhiteSpace(character.Name) ? "인물" : character.Name);
+        var path = Path.Combine(directory, safeName + ".md");
+        var markdown =
+            $"# {character.Name}\n\n"
+            + $"- **성격**: {character.Personality}\n"
+            + $"- **목표**: {character.Goal}\n"
+            + $"- **비밀**: {character.Secret}\n"
+            + $"- **관계**: {character.Relationships}\n";
+
+        await File.WriteAllTextAsync(path, markdown);
+        LoadReferences();
+        StatusMessage = $"'{character.Name}'을(를) 참고자료로 내보냈습니다: Characters/{safeName}.md";
+    }
+
+    private static string MakeSafeFileName(string name)
+    {
+        foreach (var c in Path.GetInvalidFileNameChars())
+        {
+            name = name.Replace(c, '_');
+        }
+
+        return name.Trim();
     }
 
     // ── 원고 역분석 (원고 → 설계) ──

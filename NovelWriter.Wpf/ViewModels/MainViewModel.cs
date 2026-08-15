@@ -59,6 +59,9 @@ public partial class MainViewModel : ObservableObject
 
     private string _referenceFolder = string.Empty;
 
+    /// <summary>참고자료 폴더 경로입니다. (스토리 플래너/생성기 연동용)</summary>
+    public string ReferenceFolderPath => _referenceFolder;
+
     [ObservableProperty]
     private ReferenceDocument? _selectedReference;
 
@@ -1121,6 +1124,65 @@ public partial class MainViewModel : ObservableObject
     private void ToggleReferenceDrawer()
     {
         IsReferenceDrawerOpen = !IsReferenceDrawerOpen;
+    }
+
+    /// <summary>
+    /// 참고자료 유형별 하위 폴더 이름입니다. (생성기의 SubFolderFor와 일치)
+    /// </summary>
+    private static readonly string[] ReferenceSubFolders =
+    {
+        "Characters", "World", "Backgrounds", "Synopsis", "Descriptions", "Illustrations"
+    };
+
+    /// <summary>
+    /// 참고자료 루트 폴더를 지정(생성)하고, 유형별 하위 폴더를 함께 만듭니다. (소설별로 분리 관리)
+    /// </summary>
+    [RelayCommand]
+    private async Task CreateReferenceFolderAsync()
+    {
+        if (ReferenceFolderResolver is null)
+        {
+            return;
+        }
+
+        var location = await ReferenceFolderResolver();
+        if (string.IsNullOrWhiteSpace(location))
+        {
+            return;
+        }
+
+        // 선택한 위치 안에 '소설 제목' 폴더를 자동 생성하고, 그 안에 유형별 하위 폴더까지 만듭니다.
+        var novelName = MakeSafeFolderName(string.IsNullOrWhiteSpace(Title) || Title == "새 문서" ? "새 소설" : Title);
+        var root = Path.Combine(location, novelName);
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            foreach (var sub in ReferenceSubFolders)
+            {
+                Directory.CreateDirectory(Path.Combine(root, sub));
+            }
+        }
+        catch (IOException)
+        {
+            // 폴더 생성 실패는 무시합니다.
+        }
+
+        _referenceFolder = root;
+        LoadReferences();
+        IsReferenceDrawerOpen = true;
+        StatusMessage = string.Format(_localizationService.Get(LanguageCode, "ReferenceFolderCreated"), novelName);
+        await PersistSettingsAsync();
+    }
+
+    private static string MakeSafeFolderName(string name)
+    {
+        foreach (var c in Path.GetInvalidFileNameChars())
+        {
+            name = name.Replace(c, '_');
+        }
+
+        return name.Trim();
     }
 
     /// <summary>

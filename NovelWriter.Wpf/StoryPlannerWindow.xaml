@@ -121,6 +121,14 @@
                                             ToolTip="삭제">
                                             <materialDesign:PackIcon Kind="Delete" />
                                         </Button>
+                                        <Button
+                                            Command="{Binding DataContext.ExportCharacterCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}"
+                                            DockPanel.Dock="Right"
+                                            Style="{StaticResource MaterialDesignToolButton}"
+                                            ToolTip="참고자료(.md)로 내보내기">
+                                            <materialDesign:PackIcon Kind="FileExportOutline" />
+                                        </Button>
                                         <TextBox materialDesign:HintAssist.Hint="이름" Text="{Binding Name}" />
                                     </DockPanel>
                                     <TextBox
@@ -168,6 +176,48 @@
                     Command="{Binding GenerateChaptersCommand}"
                     Content="장 구성 생성"
                     Style="{StaticResource MaterialDesignRaisedButton}" />
+
+                <!--  참고자료 연동 (참고자료 폴더 → 인물/생성 참조)  -->
+                <Separator Margin="0,16,0,10" />
+                <DockPanel Margin="0,0,0,6">
+                    <TextBlock FontWeight="Bold" Text="📎 참고자료 연동" />
+                    <Button
+                        HorizontalAlignment="Right"
+                        Command="{Binding LoadReferencesCommand}"
+                        DockPanel.Dock="Right"
+                        Style="{StaticResource MaterialDesignToolButton}"
+                        ToolTip="새로고침">
+                        <materialDesign:PackIcon Kind="Refresh" />
+                    </Button>
+                </DockPanel>
+                <ListBox
+                    MaxHeight="120"
+                    Margin="0,0,0,6"
+                    ItemsSource="{Binding References}"
+                    SelectedItem="{Binding SelectedReference}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Margin="0,0,6,0" VerticalAlignment="Center" Kind="FileDocumentOutline" />
+                                <TextBlock VerticalAlignment="Center" Text="{Binding Name}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <WrapPanel>
+                    <Button Margin="0,0,6,6" Command="{Binding ImportCharacterCommand}" Content="인물로 추가" Style="{StaticResource MaterialDesignRaisedButton}" />
+                    <Button Margin="0,0,6,6" Command="{Binding IncludeReferenceCommand}" Content="설정에 참조" Style="{StaticResource MaterialDesignOutlinedButton}" />
+                    <Button Margin="0,0,0,6" Command="{Binding ClearReferenceNotesCommand}" Content="참조 비우기" Style="{StaticResource MaterialDesignFlatButton}" />
+                </WrapPanel>
+                <TextBox
+                    MaxHeight="80"
+                    materialDesign:HintAssist.Hint="생성 참조 메모 (인물·배경 묘사 등, 생성 시 반영)"
+                    AcceptsReturn="True"
+                    IsReadOnly="True"
+                    Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                    Text="{Binding Project.ReferenceNotes}"
+                    TextWrapping="Wrap"
+                    VerticalScrollBarVisibility="Auto" />
             </StackPanel>
         </ScrollViewer>
 

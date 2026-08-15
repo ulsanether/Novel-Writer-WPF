@@ -21,14 +21,18 @@ public sealed class ReferenceLibraryService
 
         var documents = new List<ReferenceDocument>();
 
-        foreach (var path in Directory.EnumerateFiles(folderPath, "*.md", SearchOption.TopDirectoryOnly)
-                     .OrderBy(p => Path.GetFileName(p), StringComparer.OrdinalIgnoreCase))
+        foreach (var path in Directory.EnumerateFiles(folderPath, "*.md", SearchOption.AllDirectories)
+                     .OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
         {
             try
             {
+                // 하위 폴더가 있으면 이름에 상대 경로를 표시합니다. (예: Characters/주인공)
+                var relative = Path.GetRelativePath(folderPath, path);
+                var name = Path.ChangeExtension(relative, null)?.Replace('\\', '/') ?? Path.GetFileNameWithoutExtension(path);
+
                 documents.Add(new ReferenceDocument
                 {
-                    Name = Path.GetFileNameWithoutExtension(path),
+                    Name = name,
                     FullPath = path,
                     Content = File.ReadAllText(path)
                 });

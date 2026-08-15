@@ -177,6 +177,15 @@
                         </StackPanel>
                         <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                             <Button
+                                Command="{Binding CreateReferenceFolderCommand}"
+                                Style="{StaticResource MaterialDesignToolButton}"
+                                ToolTip="폴더 만들기 (유형별 하위 폴더 자동 생성)">
+                                <materialDesign:PackIcon
+                                    Width="20"
+                                    Height="20"
+                                    Kind="FolderPlusOutline" />
+                            </Button>
+                            <Button
                                 Command="{Binding OpenReferenceFolderCommand}"
                                 Style="{StaticResource MaterialDesignToolButton}"
                                 ToolTip="{Binding ReferenceOpenFolderText}">

@@ -283,6 +283,16 @@ public partial class MainWindow : Window
             System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
+    private static string MakeSafeFileName(string name)
+    {
+        foreach (var c in Path.GetInvalidFileNameChars())
+        {
+            name = name.Replace(c, '_');
+        }
+
+        return name.Trim();
+    }
+
     private TypoMark? FindMarkAt(int index)
     {
         if (index < 0)
@@ -348,14 +358,35 @@ public partial class MainWindow : Window
     {
         var viewModel = new ReferenceGeneratorViewModel(_chatService)
         {
-            SavePathResolver = suggested =>
+            SavePathResolver = (suggested, subFolder) =>
             {
+                // 기본 저장 위치를 참고자료 폴더의 유형별 하위 폴더로 (폴더로 자동 분류)
+                var folder = _viewModel.ReferenceFolderPath;
+                var targetFolder = folder;
+                if (!string.IsNullOrWhiteSpace(folder) && Directory.Exists(folder) && !string.IsNullOrWhiteSpace(subFolder))
+                {
+                    targetFolder = Path.Combine(folder, subFolder);
+                    Directory.CreateDirectory(targetFolder);
+                }
+
+                // 넘버링 접두: 해당 폴더의 기존 .md 개수로 순번(0000_)을 매깁니다.
+                var sequence = !string.IsNullOrWhiteSpace(targetFolder) && Directory.Exists(targetFolder)
+                    ? Directory.GetFiles(targetFolder, "*.md").Length
+                    : 0;
+                var safeBase = MakeSafeFileName(suggested);
+                var fileName = $"{sequence:0000}_{safeBase}";
+
                 var dialog = new SaveFileDialog
                 {
                     Filter = "Markdown (*.md)|*.md",
                     DefaultExt = ".md",
-                    FileName = suggested
+                    FileName = fileName
                 };
+                if (!string.IsNullOrWhiteSpace(targetFolder) && Directory.Exists(targetFolder))
+                {
+                    dialog.InitialDirectory = targetFolder;
+                }
+
                 return Task.FromResult(dialog.ShowDialog(this) == true ? dialog.FileName : null);
             }
         };
@@ -376,7 +407,9 @@ public partial class MainWindow : Window
     private void OnOpenStoryPlanner(object sender, RoutedEventArgs e)
     {
         var project = _storyProjectService.Load();
-        var viewModel = new StoryPlannerViewModel(project, _storyProjectService, _storyPlannerService)
+        var viewModel = new StoryPlannerViewModel(
+            project, _storyProjectService, _storyPlannerService,
+            new ReferenceLibraryService(), _viewModel.ReferenceFolderPath)
         {
             InsertToEditor = text =>
             {

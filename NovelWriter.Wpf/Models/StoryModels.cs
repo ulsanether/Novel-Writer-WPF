@@ -70,6 +70,9 @@ public partial class StoryProject : ObservableObject
     // ── 시놉시스 ──
     [ObservableProperty] private string _synopsis = string.Empty;
 
+    /// <summary>생성 시 참조할 참고자료 메모(인물·배경 묘사 등)입니다.</summary>
+    [ObservableProperty] private string _referenceNotes = string.Empty;
+
     // ── 장/Scene ──
     /// <summary>장 목록입니다.</summary>
     public ObservableCollection<ChapterNode> Chapters { get; set; } = new();
