@@ -175,6 +175,8 @@ public sealed class ImageSetupService
             RemoveIncompatibleVenv(repoDir, python, progress);
         }
 
+        // 4) 최신 setuptools(pkg_resources 제거) 문제 방어 — 빌드 격리에도 옛 setuptools 강제
+        EnsurePipConstraints(repoDir);
         EnsureApiFlag(repoDir);
         progress.Report("설치가 준비되었습니다. [WebUI 실행]을 누르면 첫 실행 시 필요한 파일을 자동으로 받습니다(수 GB · 시간 소요).");
         return true;
@@ -269,6 +271,53 @@ public sealed class ImageSetupService
                 progress.Report("이전에 호환되지 않는 파이썬으로 만들어진 venv를 정리합니다.");
                 Directory.Delete(venvDir, recursive: true);
             }
+        }
+        catch
+        {
+            // 무시
+        }
+    }
+
+    /// <summary>
+    /// 최신 setuptools(81+)가 <c>pkg_resources</c>를 제거해 CLIP/gfpgan 등 옛 패키지 빌드가 깨지는 문제를 방어합니다.
+    /// <c>pip-constraints.txt</c>(setuptools&lt;70)를 만들고 webui-user.bat에 <c>set PIP_CONSTRAINT=</c>를 지정해
+    /// pip 빌드 격리 환경에도 옛 setuptools가 쓰이도록 강제합니다.
+    /// </summary>
+    public void EnsurePipConstraints(string directory)
+    {
+        try
+        {
+            var constraintsPath = Path.Combine(directory, "pip-constraints.txt");
+            File.WriteAllText(constraintsPath, "setuptools<70\nwheel\n");
+
+            var batPath = Path.Combine(directory, "webui-user.bat");
+            if (!File.Exists(batPath))
+            {
+                return;
+            }
+
+            var line = $"set PIP_CONSTRAINT={constraintsPath}";
+            var lines = File.ReadAllLines(batPath).ToList();
+            var idx = lines.FindIndex(l => l.TrimStart().StartsWith("set PIP_CONSTRAINT=", StringComparison.OrdinalIgnoreCase));
+            if (idx >= 0)
+            {
+                lines[idx] = line;
+            }
+            else
+            {
+                // call webui.bat 앞에 삽입(없으면 맨 끝)
+                var callIdx = lines.FindIndex(l => l.TrimStart().StartsWith("call webui.bat", StringComparison.OrdinalIgnoreCase));
+                if (callIdx >= 0)
+                {
+                    lines.Insert(callIdx, line);
+                }
+                else
+                {
+                    lines.Add(line);
+                }
+            }
+
+            File.WriteAllLines(batPath, lines);
         }
         catch
         {

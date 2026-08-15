@@ -35,6 +35,19 @@ public partial class StoryPlannerViewModel : ObservableObject
     /// <summary>덮어쓰기 전 사용자 확인 콜백입니다. (true=진행)</summary>
     public Func<string, bool>? ConfirmOverwrite { get; set; }
 
+    /// <summary>이미지 서버 설정 창을 여는 콜백입니다.</summary>
+    public Action? OpenImageServerSettings { get; set; }
+
+    /// <summary>이미지 서버를 실행하는 콜백입니다. (메인 뷰모델의 실행 로직 재사용)</summary>
+    public Action? LaunchImageServerCallback { get; set; }
+
+    /// <summary>생성 전 이미지 모델 준비(없으면 자동 다운로드) 콜백입니다. (true=준비됨)</summary>
+    public Func<Task<bool>>? EnsureImageModel { get; set; }
+
+    /// <summary>이미지 서버 연결 상태 메시지입니다.</summary>
+    [ObservableProperty]
+    private string _imageServerStatus = "이미지 서버 상태: 미확인";
+
     /// <summary>
     /// 뷰모델을 초기화합니다.
     /// </summary>
@@ -258,6 +271,60 @@ public partial class StoryPlannerViewModel : ObservableObject
     // ── 이미지 생성 (삽화) ──
 
     /// <summary>
+    /// 이미지 서버 연결 상태를 확인합니다.
+    /// </summary>
+    [RelayCommand]
+    private async Task CheckImageServerAsync()
+    {
+        ImageServerStatus = "이미지 서버 상태: 확인 중...";
+        var running = await _imageGenService.IsRunningAsync();
+        ImageServerStatus = running
+            ? "이미지 서버 상태: ✅ 연결됨"
+            : "이미지 서버 상태: ❌ 응답 없음 → [서버 설정]에서 실행하세요";
+    }
+
+    /// <summary>
+    /// 이미지 서버 설정 창을 엽니다. (설치·실행·모델 다운로드)
+    /// </summary>
+    [RelayCommand]
+    private void OpenImageServer() => OpenImageServerSettings?.Invoke();
+
+    /// <summary>
+    /// 이미지 모델을 준비합니다. (없으면 자동 다운로드)
+    /// </summary>
+    [RelayCommand]
+    private async Task PrepareImageModelAsync()
+    {
+        if (EnsureImageModel is null)
+        {
+            return;
+        }
+
+        ImageServerStatus = "이미지 서버 상태: 모델 확인 중...";
+        await EnsureImageModel();
+    }
+
+    /// <summary>
+    /// 이미지 서버를 실행하고, 잠시 후 연결 상태를 확인합니다.
+    /// </summary>
+    [RelayCommand]
+    private async Task LaunchImageServerAsync()
+    {
+        if (LaunchImageServerCallback is null)
+        {
+            OpenImageServerSettings?.Invoke();
+            return;
+        }
+
+        ImageServerStatus = "이미지 서버 상태: 서버를 실행하는 중... (준비까지 수십 초~수 분)";
+        LaunchImageServerCallback.Invoke();
+
+        // 서버가 뜨는 데 시간이 걸리므로 잠시 뒤 자동으로 연결을 확인합니다.
+        await Task.Delay(8000);
+        await CheckImageServerAsync();
+    }
+
+    /// <summary>
     /// 캐릭터의 외형 프롬프트를 만들고 레퍼런스 이미지를 생성합니다.
     /// </summary>
     [RelayCommand]
@@ -286,11 +353,18 @@ public partial class StoryPlannerViewModel : ObservableObject
                 return;
             }
 
+            if (EnsureImageModel is not null && !await EnsureImageModel())
+            {
+                StatusMessage = "이미지 모델이 준비되지 않았습니다. [모델 준비] 또는 [서버 실행]을 확인하세요.";
+                return;
+            }
+
             var fullPrompt = $"{Project.ImageStylePrefix}, character reference sheet, full body, {character.AppearancePrompt}";
             var result = await _imageGenService.GenerateAsync(fullPrompt, character.ImageSeed);
             if (result is null)
             {
-                StatusMessage = "이미지 생성에 실패했습니다. 이미지 서버(SD WebUI, :7860)가 실행 중인지 확인하세요.";
+                StatusMessage = "이미지 생성 실패 — 이미지 서버가 실행 중이 아니거나 모델이 없습니다. [서버 설정]에서 실행·모델을 확인하세요.";
+                ImageServerStatus = "이미지 서버 상태: ❌ 생성 실패 (실행/모델 확인)";
                 return;
             }
 
@@ -330,11 +404,18 @@ public partial class StoryPlannerViewModel : ObservableObject
                 return;
             }
 
+            if (EnsureImageModel is not null && !await EnsureImageModel())
+            {
+                StatusMessage = "이미지 모델이 준비되지 않았습니다. [모델 준비] 또는 [서버 실행]을 확인하세요.";
+                return;
+            }
+
             var fullPrompt = $"{Project.ImageStylePrefix}, {scene.IllustrationPrompt}";
             var result = await _imageGenService.GenerateAsync(fullPrompt, scene.IllustrationSeed);
             if (result is null)
             {
-                StatusMessage = "이미지 생성에 실패했습니다. 이미지 서버(SD WebUI, :7860)가 실행 중인지 확인하세요.";
+                StatusMessage = "이미지 생성 실패 — 이미지 서버가 실행 중이 아니거나 모델이 없습니다. [서버 설정]에서 실행·모델을 확인하세요.";
+                ImageServerStatus = "이미지 서버 상태: ❌ 생성 실패 (실행/모델 확인)";
                 return;
             }
 

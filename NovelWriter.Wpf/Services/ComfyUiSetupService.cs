@@ -232,24 +232,40 @@ public sealed class ComfyUiSetupService
 
         Directory.CreateDirectory(folder);
         var dest = Path.Combine(folder, model.FileName);
-        if (File.Exists(dest) && new FileInfo(dest).Length > 100_000_000)
+        var part = dest + ".part";
+
+        // 최종 파일명이 존재하면 완료된 것(불완전 파일은 .part로만 존재하므로)
+        if (File.Exists(dest))
         {
             progress.Report($"{model.DisplayName}은(는) 이미 있습니다.");
             return true;
         }
 
+        try { if (File.Exists(part)) File.Delete(part); } catch { /* 무시 */ }
+
         progress.Report($"{model.DisplayName} 다운로드를 시작합니다. ({model.Note})");
-        var ok = await DownloadAsync(model.Url, dest, progress).ConfigureAwait(false);
-        if (ok)
+        var ok = await DownloadAsync(model.Url, part, progress).ConfigureAwait(false);
+        if (!ok)
         {
-            progress.Report($"모델 준비 완료: {model.FileName}");
-        }
-        else
-        {
-            try { File.Delete(dest); } catch { /* 무시 */ }
+            try { File.Delete(part); } catch { /* 무시 */ }
+            progress.Report("다운로드가 완료되지 않아 임시 파일을 삭제했습니다. 다시 시도하세요.");
+            return false;
         }
 
-        return ok;
+        // 완료된 .part를 최종 이름으로 원자적 이동 (이제부터 ComfyUI가 인식)
+        try
+        {
+            if (File.Exists(dest)) File.Delete(dest);
+            File.Move(part, dest);
+        }
+        catch (Exception ex)
+        {
+            progress.Report("파일 정리 오류: " + ex.Message);
+            return false;
+        }
+
+        progress.Report($"모델 준비 완료: {model.FileName}");
+        return true;
     }
 
     /// <summary>
@@ -326,27 +342,35 @@ public sealed class ComfyUiSetupService
             }
 
             var total = response.Content.Headers.ContentLength ?? -1L;
-            await using var source = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-            await using var dest = File.Create(destPath);
-
-            var buffer = new byte[1 << 20]; // 1MB
             long readTotal = 0;
-            var lastPercent = -5;
-            int read;
-            while ((read = await source.ReadAsync(buffer).ConfigureAwait(false)) > 0)
+            await using (var source = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+            await using (var dest = File.Create(destPath))
             {
-                await dest.WriteAsync(buffer.AsMemory(0, read)).ConfigureAwait(false);
-                readTotal += read;
-
-                if (total > 0)
+                var buffer = new byte[1 << 20]; // 1MB
+                var lastPercent = -5;
+                int read;
+                while ((read = await source.ReadAsync(buffer).ConfigureAwait(false)) > 0)
                 {
-                    var percent = (int)(readTotal * 100 / total);
-                    if (percent >= lastPercent + 5)
+                    await dest.WriteAsync(buffer.AsMemory(0, read)).ConfigureAwait(false);
+                    readTotal += read;
+
+                    if (total > 0)
                     {
-                        lastPercent = percent;
-                        progress.Report($"다운로드 {percent}% ({readTotal / 1024 / 1024}MB / {total / 1024 / 1024}MB)");
+                        var percent = (int)(readTotal * 100 / total);
+                        if (percent >= lastPercent + 5)
+                        {
+                            lastPercent = percent;
+                            progress.Report($"다운로드 {percent}% ({readTotal / 1024 / 1024}MB / {total / 1024 / 1024}MB)");
+                        }
                     }
                 }
+            }
+
+            // 완결성 검증: 서버가 알려준 크기와 실제 받은 크기가 다르면 실패 처리
+            if (total > 0 && readTotal != total)
+            {
+                progress.Report($"다운로드 불완전: {readTotal / 1024 / 1024}MB / {total / 1024 / 1024}MB (연결 끊김) — 실패로 처리합니다.");
+                return false;
             }
 
             progress.Report("다운로드 완료.");

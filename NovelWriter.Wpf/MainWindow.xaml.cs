@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private readonly StoryPlannerService _storyPlannerService;
     private readonly ChatService _chatService;
     private readonly ImageServiceRouter _imageService = new();
+    private readonly NovelProjectService _novelProjectService;
 
     /// <summary>
     /// 메인 윈도우를 초기화합니다.
@@ -55,6 +56,7 @@ public partial class MainWindow : Window
         var settingsService = new SettingsService(appData);
         var imageSetupService = new ImageSetupService();
         var comfyUiSetupService = new ComfyUiSetupService();
+        _novelProjectService = new NovelProjectService();
 
         _viewModel = new MainViewModel(
             repository,
@@ -73,12 +75,43 @@ public partial class MainWindow : Window
             statisticsService,
             localizationService,
             themeService,
-            settingsService);
+            settingsService,
+            _novelProjectService);
 
         _viewModel.ImportPathResolver = ResolveImportPathAsync;
         _viewModel.ExportPathResolver = ResolveExportPathAsync;
         _viewModel.SaveAsPathResolver = ResolveSaveAsPathAsync;
         _viewModel.ReferenceFolderResolver = ResolveReferenceFolderAsync;
+        _viewModel.NewProjectResolver = () =>
+        {
+            // 위치+파일명을 한 번에 받습니다. 파일명(확장자 제외)이 작품 제목이 됩니다.
+            var dialog = new SaveFileDialog
+            {
+                Title = "새 작품 만들기 — 위치와 제목(파일명) 지정",
+                Filter = "글만들기 작품 (*.novel)|*.novel",
+                DefaultExt = ".novel",
+                FileName = "새 작품"
+            };
+            if (dialog.ShowDialog(this) != true)
+            {
+                return Task.FromResult<(string, string)?>(null);
+            }
+
+            var parent = Path.GetDirectoryName(dialog.FileName) ?? string.Empty;
+            var title = Path.GetFileNameWithoutExtension(dialog.FileName);
+            return Task.FromResult<(string, string)?>((parent, title));
+        };
+        _viewModel.OpenProjectResolver = () =>
+        {
+            var dialog = new OpenFileDialog
+            {
+                Title = "작품 열기",
+                Filter = "글만들기 작품 (*.novel)|*.novel|모든 파일 (*.*)|*.*"
+            };
+            return Task.FromResult(dialog.ShowDialog(this) == true ? dialog.FileName : null);
+        };
+        _viewModel.ConfirmImageModelDownload = message =>
+            MessageBox.Show(this, message, "이미지 모델 자동 다운로드", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
         _viewModel.ImageInstallFolderResolver = () =>
         {
             var dialog = new OpenFolderDialog { Title = "이미지 서버를 설치할 폴더 선택" };
@@ -373,8 +406,9 @@ public partial class MainWindow : Window
 
     private void OnOpenReferenceGenerator(object sender, RoutedEventArgs e)
     {
-        var viewModel = new ReferenceGeneratorViewModel(_chatService)
+        var viewModel = new ReferenceGeneratorViewModel(_chatService, _imageService, _viewModel.ReferenceFolderPath)
         {
+            StylePrefix = _viewModel.CurrentStylePrefix,
             SavePathResolver = (suggested, subFolder) =>
             {
                 // 기본 저장 위치를 참고자료 폴더의 유형별 하위 폴더로 (폴더로 자동 분류)
@@ -409,6 +443,13 @@ public partial class MainWindow : Window
         };
 
         var window = new ReferenceGeneratorWindow(viewModel) { Owner = this };
+        viewModel.OpenImageServerSettings = () =>
+        {
+            var imageWindow = new ImageServerWindow(_viewModel) { Owner = window };
+            imageWindow.ShowDialog();
+        };
+        viewModel.LaunchImageServerCallback = () => _viewModel.LaunchImageServerCommand.Execute(null);
+        viewModel.EnsureImageModel = () => _viewModel.EnsureComfyModelReadyAsync();
         window.ShowDialog();
 
         // 저장된 .md가 참고자료 폴더에 있으면 서랍을 새로고침합니다.
@@ -423,7 +464,11 @@ public partial class MainWindow : Window
 
     private void OnOpenStoryPlanner(object sender, RoutedEventArgs e)
     {
-        var project = _storyProjectService.Load();
+        // 작품 프로젝트가 열려 있으면 그 설계를 편집(같은 인스턴스 → 작품 저장 시 함께 저장),
+        // 없으면 기존 story_project.json을 사용합니다.
+        var project = _viewModel.CurrentProject?.Story ?? _storyProjectService.Load();
+        // 현재 화풍(이미지 스타일)을 설계에 반영 (삽화 생성 프롬프트에 사용됨)
+        project.ImageStylePrefix = _viewModel.CurrentStylePrefix;
         var viewModel = new StoryPlannerViewModel(
             project, _storyProjectService, _storyPlannerService,
             new ReferenceLibraryService(), _imageService, _viewModel.ReferenceFolderPath)
@@ -438,6 +483,24 @@ public partial class MainWindow : Window
         };
 
         var window = new StoryPlannerWindow(viewModel) { Owner = this };
+        // 스토리 플래너를 닫으면 설계가 바뀌었을 수 있으므로 변경으로 표시(작품이 열려 있을 때)
+        window.Closed += (_, _) =>
+        {
+            if (_viewModel.CurrentProject is not null)
+            {
+                _viewModel.MarkProjectDirty();
+            }
+        };
+        // 삽화 구역에서 바로 이미지 서버 설정 창을 열 수 있게 콜백 주입
+        viewModel.OpenImageServerSettings = () =>
+        {
+            var imageWindow = new ImageServerWindow(_viewModel) { Owner = window };
+            imageWindow.ShowDialog();
+        };
+        // 삽화 구역에서 바로 서버를 실행할 수 있게 메인 뷰모델의 실행 로직 재사용
+        viewModel.LaunchImageServerCallback = () => _viewModel.LaunchImageServerCommand.Execute(null);
+        // 생성 전 모델 준비(없으면 자동 다운로드)
+        viewModel.EnsureImageModel = () => _viewModel.EnsureComfyModelReadyAsync();
         window.ShowDialog();
     }
 
@@ -479,6 +542,39 @@ public partial class MainWindow : Window
             Topmost = false;
             ChromePanel.Visibility = Visibility.Visible;
         }
+    }
+
+    private bool _forceClose;
+
+    private async void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (_forceClose || !_viewModel.IsProjectDirty)
+        {
+            return;
+        }
+
+        // 결정할 때까지 닫기를 보류합니다.
+        e.Cancel = true;
+
+        var result = MessageBox.Show(
+            this,
+            "편집한 내용이 작품 파일(.novel)에 저장되지 않았습니다. 저장하시겠습니까?",
+            "글만들기",
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Question);
+
+        if (result == MessageBoxResult.Cancel)
+        {
+            return; // 닫기 취소 — 계속 편집
+        }
+
+        if (result == MessageBoxResult.Yes)
+        {
+            await _viewModel.SaveProjectCommand.ExecuteAsync(null);
+        }
+
+        _forceClose = true; // No이거나 저장 완료 → 실제로 닫기
+        Close();
     }
 
     private void Window_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)

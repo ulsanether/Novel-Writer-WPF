@@ -98,42 +98,75 @@ public sealed class ComfyUiImageService : IImageBackend
     // 사용할 체크포인트를 결정합니다. (지정값 우선, 없으면 서버의 첫 번째)
     private async Task<string?> ResolveCheckpointAsync(CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrWhiteSpace(CheckpointName))
+        var list = await ListCheckpointsAsync(cancellationToken).ConfigureAwait(false);
+        if (list.Count == 0)
+        {
+            return null; // 설치된 체크포인트 없음
+        }
+
+        // 지정된 체크포인트가 아직 서버에 있으면 사용, 아니면 첫 번째로 대체
+        if (!string.IsNullOrWhiteSpace(CheckpointName) && list.Contains(CheckpointName))
         {
             return CheckpointName;
         }
 
+        CheckpointName = list[0];
+        return CheckpointName;
+    }
+
+    /// <summary>
+    /// 서버에 설치된 체크포인트(.safetensors 등) 목록을 조회합니다.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> ListCheckpointsAsync(CancellationToken cancellationToken = default)
+    {
         try
         {
             using var response = await HttpClient.GetAsync($"{Root()}/object_info/CheckpointLoaderSimple", cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
-                return null;
+                return Array.Empty<string>();
             }
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             // CheckpointLoaderSimple.input.required.ckpt_name[0] = [파일명 배열]
-            var list = doc.RootElement
+            var arr = doc.RootElement
                 .GetProperty("CheckpointLoaderSimple")
                 .GetProperty("input")
                 .GetProperty("required")
                 .GetProperty("ckpt_name")[0];
 
-            if (list.ValueKind == JsonValueKind.Array && list.GetArrayLength() > 0)
+            if (arr.ValueKind != JsonValueKind.Array)
             {
-                var first = list[0].GetString();
-                CheckpointName = first ?? string.Empty;
-                return first;
+                return Array.Empty<string>();
             }
+
+            var result = new List<string>();
+            foreach (var item in arr.EnumerateArray())
+            {
+                var name = item.GetString();
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    result.Add(name);
+                }
+            }
+
+            return result;
         }
         catch
         {
-            // 무시
+            return Array.Empty<string>();
         }
+    }
 
-        return null;
+    /// <summary>
+    /// 사용 가능한 체크포인트가 하나라도 있는지 확인합니다. (있으면 CheckpointName도 보정)
+    /// </summary>
+    public async Task<bool> HasCheckpointAsync(CancellationToken cancellationToken = default)
+    {
+        var checkpoint = await ResolveCheckpointAsync(cancellationToken).ConfigureAwait(false);
+        return !string.IsNullOrWhiteSpace(checkpoint);
     }
 
     // 기본 txt2img 워크플로우(그래프)를 만듭니다. (SDXL/SD 계열 공용)

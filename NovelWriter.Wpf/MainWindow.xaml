@@ -7,10 +7,11 @@
     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="clr-namespace:NovelWriter.Wpf.ViewModels"
-    Title="글만들기"
+    Title="{Binding AppTitle}"
     Width="1280"
     Height="768"
     Background="{Binding EditorBackground}"
+    Closing="Window_OnClosing"
     MouseMove="Window_MouseMove"
     WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
@@ -275,6 +276,23 @@
                         Padding="6,2"
                         Background="Transparent"
                         FontSize="{Binding MenuFontSize}">
+                        <MenuItem Header="작품">
+                            <MenuItem Command="{Binding NewProjectCommand}" Header="새 작품...">
+                                <MenuItem.Icon>
+                                    <materialDesign:PackIcon Kind="BookPlusOutline" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Command="{Binding OpenProjectCommand}" Header="작품 열기...">
+                                <MenuItem.Icon>
+                                    <materialDesign:PackIcon Kind="BookOpenOutline" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Command="{Binding SaveProjectCommand}" Header="작품 저장">
+                                <MenuItem.Icon>
+                                    <materialDesign:PackIcon Kind="BookmarkOutline" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                        </MenuItem>
                         <MenuItem Header="{Binding FileMenuText}">
                             <MenuItem Command="{Binding NewDocumentCommand}" Header="{Binding NewDocumentText}">
                                 <MenuItem.Icon>

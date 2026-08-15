@@ -22,7 +22,10 @@ AI 글 작성해주는 데스크톱 애플리케이션
   <img src="Img/06.png" width="50%" style="margin: 5px;"><br>
   <img src="Img/07.png" width="50%" style="margin: 5px;">
 </p>
-
+  <p align="center"> 
+  <img src="Img/08.png" width="50%" style="margin: 5px;"><br>
+  <img src="Img/09.png" width="50%" style="margin: 5px;">
+</p>
 
 
 ## 기술 요구사항

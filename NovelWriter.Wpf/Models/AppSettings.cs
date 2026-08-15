@@ -118,7 +118,7 @@ public sealed class AppSettings
     /// <summary>
     /// 이미지 생성 백엔드를 가져오거나 설정합니다. ("A1111" 또는 "ComfyUI")
     /// </summary>
-    public string ImageBackend { get; set; } = "A1111";
+    public string ImageBackend { get; set; } = "ComfyUI";
 
     /// <summary>
     /// ComfyUI 서버 주소를 가져오거나 설정합니다.
@@ -139,4 +139,9 @@ public sealed class AppSettings
     /// 이미지 서버 실행에 사용할 하드웨어 프로파일 키를 가져오거나 설정합니다. (Auto/High/Medium/Low/Cpu)
     /// </summary>
     public string ImageHardware { get; set; } = "Auto";
+
+    /// <summary>
+    /// 기본 화풍(이미지 스타일) 설정을 가져오거나 설정합니다. (작품 생성 시 초기값)
+    /// </summary>
+    public ImageStyleSettings ImageStyle { get; set; } = new();
 }

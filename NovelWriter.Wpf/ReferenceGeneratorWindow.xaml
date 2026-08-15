@@ -2,15 +2,17 @@
     x:Class="NovelWriter.Wpf.ReferenceGeneratorWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:NovelWriter.Wpf"
     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
     Title="참고자료 생성기"
-    Width="560"
-    Height="640"
+    Width="620"
+    Height="780"
     WindowStartupLocation="CenterOwner"
     Background="{DynamicResource MaterialDesignPaper}"
     TextElement.Foreground="{DynamicResource MaterialDesignBody}">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <local:PathToImageConverter x:Key="PathToImage" />
     </Window.Resources>
     <DockPanel Margin="16">
         <TextBlock DockPanel.Dock="Top" Margin="0,0,0,10" FontSize="16" FontWeight="Bold" Text="참고자료 생성기 (.md)" />
@@ -68,6 +70,31 @@
                 DockPanel.Dock="Right"
                 Style="{StaticResource MaterialDesignRaisedButton}" />
         </DockPanel>
+
+        <!--  이미지 생성 (캐릭터/배경 삽화)  -->
+        <Border DockPanel.Dock="Bottom" Margin="0,8,0,0" Padding="10" Background="#18808080" CornerRadius="6">
+            <StackPanel>
+                <TextBlock Margin="0,0,0,6" FontWeight="SemiBold" Text="🖼 이미지 생성 (생성된 설정 기반)" />
+                <TextBlock Margin="0,0,0,6" FontSize="11" Opacity="0.8" Text="{Binding ImageServerStatus}" />
+                <TextBox
+                    Margin="0,0,0,6"
+                    materialDesign:HintAssist.Hint="이미지 프롬프트(영어, 비우면 내용에서 자동 생성)"
+                    Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                    Text="{Binding ImagePrompt}"
+                    TextWrapping="Wrap" />
+                <Button
+                    Margin="0,0,0,6"
+                    HorizontalAlignment="Left"
+                    Command="{Binding GenerateImageCommand}"
+                    Content="이미지 생성"
+                    Style="{StaticResource MaterialDesignRaisedButton}" />
+                <Image
+                    MaxHeight="200"
+                    HorizontalAlignment="Left"
+                    Source="{Binding GeneratedImagePath, Converter={StaticResource PathToImage}}"
+                    Stretch="Uniform" />
+            </StackPanel>
+        </Border>
 
         <TextBox
             materialDesign:HintAssist.Hint="생성 결과 (수정 가능)"

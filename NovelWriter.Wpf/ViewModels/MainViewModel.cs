@@ -33,6 +33,7 @@ public partial class MainViewModel : ObservableObject
     private readonly LocalizationService _localizationService;
     private readonly ThemeService _themeService;
     private readonly SettingsService _settingsService;
+    private readonly NovelProjectService _novelProjectService;
     private readonly DispatcherTimer _autoSaveTimer;
     private CancellationTokenSource? _pullCancellation;
     private bool _suppressMarkClear;
@@ -64,6 +65,232 @@ public partial class MainViewModel : ObservableObject
 
     /// <summary>참고자료 폴더 경로입니다. (스토리 플래너/생성기 연동용)</summary>
     public string ReferenceFolderPath => _referenceFolder;
+
+    // ── 작품 프로젝트(.novel) 통합 관리 ──
+
+    /// <summary>현재 열려 있는 작품 프로젝트입니다. (없으면 null)</summary>
+    public NovelProject? CurrentProject { get; private set; }
+
+    private bool _suppressDirty;
+
+    /// <summary>편집 후 작품(.novel)에 저장되지 않은 변경이 있는지 여부입니다.</summary>
+    public bool IsProjectDirty { get; private set; }
+
+    /// <summary>편집 발생을 표시합니다. (닫기 전 저장 확인용)</summary>
+    public void MarkProjectDirty()
+    {
+        if (!_suppressDirty)
+        {
+            IsProjectDirty = true;
+        }
+    }
+
+    /// <summary>창 제목입니다. (작품명 포함)</summary>
+    public string AppTitle => string.IsNullOrWhiteSpace(_novelProjectService.CurrentPath)
+        ? "글만들기"
+        : $"{Title} — 글만들기";
+
+    /// <summary>현재 프로젝트가 열려 있는지 여부입니다.</summary>
+    public bool HasProject => CurrentProject is not null;
+
+    /// <summary>새 작품 생성 시 상위 폴더·제목을 받는 콜백입니다.</summary>
+    public Func<Task<(string ParentFolder, string Title)?>>? NewProjectResolver { get; set; }
+
+    /// <summary>작품 파일(.novel) 열기 경로 콜백입니다.</summary>
+    public Func<Task<string?>>? OpenProjectResolver { get; set; }
+
+    /// <summary>작품 다른 이름으로 저장 경로 콜백입니다. (제안 파일명)</summary>
+    public Func<string, Task<string?>>? SaveProjectAsResolver { get; set; }
+
+    /// <summary>스토리 플래너에 현재 작품의 설계를 넘겨주기 위한 알림입니다. (View 재오픈용)</summary>
+    public event Action? ProjectChanged;
+
+    /// <summary>
+    /// 새 작품을 만듭니다. (폴더+하위폴더+.novel 생성 후 현재 상태로 적용)
+    /// </summary>
+    [RelayCommand]
+    private async Task NewProjectAsync()
+    {
+        if (NewProjectResolver is null)
+        {
+            return;
+        }
+
+        var choice = await NewProjectResolver();
+        if (choice is null || string.IsNullOrWhiteSpace(choice.Value.ParentFolder))
+        {
+            return;
+        }
+
+        // 새 작품은 현재 AI/이미지 설정을 초기값으로 물려받습니다.
+        var (project, _) = await _novelProjectService.CreateAsync(choice.Value.ParentFolder, choice.Value.Title);
+        project.Manuscript = string.Empty;
+        project.Ai = new ProjectAiSettings { Model = AiModel, BaseUrl = _aiBaseUrl };
+        project.Image = new ProjectImageSettings
+        {
+            ComfyUiBaseUrl = ComfyUiBaseUrl,
+            ComfyUiPath = ComfyUiPath,
+            Checkpoint = _imageService.Comfy.CheckpointName,
+            Hardware = (SelectedHardware ?? HardwareProfiles[0]).Key,
+            Style = CurrentStyle()
+        };
+        await _novelProjectService.SaveAsync(project, _novelProjectService.CurrentPath!);
+
+        ApplyProject(project);
+        StatusMessage = $"새 작품을 만들었습니다: {project.Title}";
+    }
+
+    /// <summary>
+    /// 작품 파일(.novel)을 엽니다.
+    /// </summary>
+    [RelayCommand]
+    private async Task OpenProjectAsync()
+    {
+        if (OpenProjectResolver is null)
+        {
+            return;
+        }
+
+        var path = await OpenProjectResolver();
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        var project = _novelProjectService.Load(path);
+        if (project is null)
+        {
+            StatusMessage = "작품 파일을 열지 못했습니다.";
+            return;
+        }
+
+        ApplyProject(project);
+        StatusMessage = $"작품을 열었습니다: {project.Title}";
+    }
+
+    /// <summary>
+    /// 현재 작품을 저장합니다. (열린 프로젝트가 없으면 저장 경로를 물어봅니다)
+    /// </summary>
+    [RelayCommand]
+    private async Task SaveProjectAsync()
+    {
+        var project = CurrentProject;
+        if (project is null)
+        {
+            // 프로젝트가 없으면 새로 만들되, 현재 원고를 잃지 않도록 보존합니다.
+            if (NewProjectResolver is null)
+            {
+                return;
+            }
+
+            var savedContent = Content;
+            await NewProjectAsync();
+            if (CurrentProject is null)
+            {
+                return;
+            }
+
+            project = CurrentProject;
+            Content = savedContent; // 새 작품 생성이 편집기를 비웠으므로 현재 원고 복원
+        }
+
+        // 현재 편집 상태를 프로젝트에 반영
+        project.Title = Title;
+        project.Manuscript = Content ?? string.Empty;
+        project.Ai = new ProjectAiSettings { Model = AiModel, BaseUrl = _aiBaseUrl };
+        project.Image = new ProjectImageSettings
+        {
+            ComfyUiBaseUrl = ComfyUiBaseUrl,
+            ComfyUiPath = ComfyUiPath,
+            Checkpoint = _imageService.Comfy.CheckpointName,
+            Hardware = (SelectedHardware ?? HardwareProfiles[0]).Key,
+            Style = CurrentStyle()
+        };
+        // Story는 스토리 플래너가 같은 인스턴스를 편집하므로 CurrentProject.Story에 이미 반영되어 있습니다.
+
+        await _novelProjectService.SaveAsync(project, _novelProjectService.CurrentPath!);
+        IsProjectDirty = false;
+        OnPropertyChanged(nameof(AppTitle));
+        StatusMessage = $"작품을 저장했습니다: {Path.GetFileName(_novelProjectService.CurrentPath)}";
+    }
+
+    /// <summary>
+    /// 프로젝트 내용을 현재 편집 상태에 적용합니다. (원고·AI·이미지·참고자료 폴더)
+    /// </summary>
+    private void ApplyProject(NovelProject project)
+    {
+        _suppressDirty = true;
+        CurrentProject = project;
+
+        Title = string.IsNullOrWhiteSpace(project.Title) ? "새 작품" : project.Title;
+        Content = project.Manuscript ?? string.Empty;
+
+        // 작품별 AI 설정 (비어 있으면 기존값 유지)
+        if (!string.IsNullOrWhiteSpace(project.Ai?.Model))
+        {
+            AiModel = project.Ai.Model;
+        }
+
+        if (!string.IsNullOrWhiteSpace(project.Ai?.BaseUrl))
+        {
+            _aiBaseUrl = project.Ai.BaseUrl;
+        }
+
+        _typoCorrectionService.Model = AiModel;
+        _typoCorrectionService.BaseUrl = _aiBaseUrl;
+        _chatService.Model = AiModel;
+        _chatService.BaseUrl = _aiBaseUrl;
+        _ollamaService.BaseUrl = ToOllamaNativeUrl(_aiBaseUrl);
+
+        // 작품별 이미지 설정
+        if (project.Image is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(project.Image.ComfyUiBaseUrl))
+            {
+                ComfyUiBaseUrl = project.Image.ComfyUiBaseUrl;
+            }
+
+            if (!string.IsNullOrWhiteSpace(project.Image.ComfyUiPath))
+            {
+                ComfyUiPath = project.Image.ComfyUiPath;
+            }
+
+            _imageService.Comfy.CheckpointName = project.Image.Checkpoint ?? _imageService.Comfy.CheckpointName;
+            var hw = HardwareProfiles.FirstOrDefault(h => string.Equals(h.Key, project.Image.Hardware, StringComparison.OrdinalIgnoreCase));
+            if (hw is not null)
+            {
+                SelectedHardware = hw;
+            }
+
+            _imageService.Comfy.BaseUrl = ComfyUiBaseUrl;
+            LoadStyle(project.Image.Style);
+        }
+
+        // 참고자료·이미지 폴더를 작품 폴더로 지정 (한 폴더에서 통합 관리)
+        var folder = _novelProjectService.CurrentFolder;
+        if (!string.IsNullOrWhiteSpace(folder))
+        {
+            _referenceFolder = folder;
+            OnPropertyChanged(nameof(ReferenceFolderPath));
+            LoadReferences();
+        }
+
+        TypoMarks.Clear();
+        UpdateStatistics();
+        OnPropertyChanged(nameof(CurrentProject));
+        OnPropertyChanged(nameof(HasProject));
+        OnPropertyChanged(nameof(AppTitle));
+        ProjectChanged?.Invoke();
+
+        _suppressDirty = false;
+        IsProjectDirty = false;
+    }
+
+    partial void OnTitleChanged(string value)
+    {
+        OnPropertyChanged(nameof(AppTitle));
+        MarkProjectDirty();
+    }
 
     // ── 이미지 생성 서버 설정/설치 ──
 
@@ -103,6 +330,122 @@ public partial class MainViewModel : ObservableObject
     /// <summary>선택한 하드웨어 프로파일입니다.</summary>
     [ObservableProperty]
     private HardwareProfile _selectedHardware;
+
+    // ── 화풍(이미지 스타일) 설정 ──
+
+    /// <summary>화풍 프리셋 목록입니다.</summary>
+    public IReadOnlyList<string> StylePresetOptions => ImageStyleCatalog.PresetLabels;
+
+    /// <summary>품질 목록입니다.</summary>
+    public IReadOnlyList<string> StyleQualityOptions => ImageStyleCatalog.QualityLabels;
+
+    /// <summary>조명 목록입니다.</summary>
+    public IReadOnlyList<string> StyleLightingOptions => ImageStyleCatalog.LightingLabels;
+
+    /// <summary>색감 목록입니다.</summary>
+    public IReadOnlyList<string> StyleColorMoodOptions => ImageStyleCatalog.ColorMoodLabels;
+
+    [ObservableProperty]
+    private string _stylePreset = "스토리북";
+
+    [ObservableProperty]
+    private string _styleQuality = "고품질";
+
+    [ObservableProperty]
+    private string _styleLighting = "없음";
+
+    [ObservableProperty]
+    private string _styleColorMood = "없음";
+
+    [ObservableProperty]
+    private string _styleExtraPositive = string.Empty;
+
+    [ObservableProperty]
+    private string _styleExtraNegative = string.Empty;
+
+    /// <summary>현재 스타일에서 만들어진 긍정 접두입니다. (스토리 플래너/참고자료 생성기 공용)</summary>
+    public string CurrentStylePrefix { get; private set; } = ImageStyleCatalog.BuildPositivePrefix(new ImageStyleSettings());
+
+    /// <summary>스타일 긍정 프롬프트 미리보기입니다.</summary>
+    public string StylePositivePreview => CurrentStylePrefix;
+
+    /// <summary>스타일 부정 프롬프트 미리보기입니다.</summary>
+    public string StyleNegativePreview => _imageService.Comfy.NegativePrompt;
+
+    /// <summary>프리셋이 적용한 해상도/스텝 미리보기입니다.</summary>
+    public string StyleResolutionPreview => $"{_imageService.Comfy.Width}×{_imageService.Comfy.Height} · {_imageService.Comfy.Steps} steps";
+
+    partial void OnStylePresetChanged(string value) => ApplyImageStyle();
+
+    partial void OnStyleQualityChanged(string value) => ApplyImageStyle();
+
+    partial void OnStyleLightingChanged(string value) => ApplyImageStyle();
+
+    partial void OnStyleColorMoodChanged(string value) => ApplyImageStyle();
+
+    partial void OnStyleExtraPositiveChanged(string value) => ApplyImageStyle();
+
+    partial void OnStyleExtraNegativeChanged(string value) => ApplyImageStyle();
+
+    /// <summary>현재 UI 값으로 스타일 설정 객체를 만듭니다.</summary>
+    private ImageStyleSettings CurrentStyle() => new()
+    {
+        Preset = StylePreset,
+        Quality = StyleQuality,
+        Lighting = StyleLighting,
+        ColorMood = StyleColorMood,
+        ExtraPositive = StyleExtraPositive,
+        ExtraNegative = StyleExtraNegative
+    };
+
+    /// <summary>
+    /// 현재 화풍 설정을 이미지 백엔드와 스토리 설계에 적용합니다.
+    /// </summary>
+    private void ApplyImageStyle()
+    {
+        var style = CurrentStyle();
+        CurrentStylePrefix = ImageStyleCatalog.BuildPositivePrefix(style);
+        var negative = ImageStyleCatalog.BuildNegative(style);
+        _imageService.Comfy.NegativePrompt = negative;
+        _imageService.A1111.NegativePrompt = negative;
+
+        // 프리셋 추천 해상도/스텝 적용 (해상도는 항상, 스텝은 저스텝 특수 모델 FLUX/Turbo 보호)
+        var preset = ImageStyleCatalog.FindPreset(style.Preset);
+        _imageService.Comfy.Width = preset.Width;
+        _imageService.Comfy.Height = preset.Height;
+        if (_imageService.Comfy.Steps >= 10)
+        {
+            _imageService.Comfy.Steps = preset.Steps;
+        }
+
+        // 스토리 플래너는 Project.ImageStylePrefix를 사용하므로 함께 반영
+        if (CurrentProject?.Story is not null)
+        {
+            CurrentProject.Story.ImageStylePrefix = CurrentStylePrefix;
+        }
+
+        OnPropertyChanged(nameof(StylePositivePreview));
+        OnPropertyChanged(nameof(StyleNegativePreview));
+        OnPropertyChanged(nameof(StyleResolutionPreview));
+        MarkProjectDirty();
+    }
+
+    /// <summary>스타일 설정 객체 값을 UI 속성에 반영합니다. (적용은 각 OnChanged가 담당)</summary>
+    private void LoadStyle(ImageStyleSettings? style)
+    {
+        if (style is null)
+        {
+            return;
+        }
+
+        StylePreset = string.IsNullOrWhiteSpace(style.Preset) ? "스토리북" : style.Preset;
+        StyleQuality = string.IsNullOrWhiteSpace(style.Quality) ? "고품질" : style.Quality;
+        StyleLighting = string.IsNullOrWhiteSpace(style.Lighting) ? "없음" : style.Lighting;
+        StyleColorMood = string.IsNullOrWhiteSpace(style.ColorMood) ? "없음" : style.ColorMood;
+        StyleExtraPositive = style.ExtraPositive ?? string.Empty;
+        StyleExtraNegative = style.ExtraNegative ?? string.Empty;
+        ApplyImageStyle();
+    }
 
     [ObservableProperty]
     private string _imageServerStatus = "확인되지 않음";
@@ -240,6 +583,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         _imageSetupService.EnsureApiFlag(ImageWebUiPath);
+        _imageSetupService.EnsurePipConstraints(ImageWebUiPath);
         _imageSetupService.EnsureExtraArgs(ImageWebUiPath, hw.A1111Args);
         var ok = _imageSetupService.Launch(ImageWebUiPath);
         ImageSetupLog += ok ? "WebUI를 실행했습니다. 콘솔 창에서 준비가 끝나면 [연결 확인]을 눌러주세요.\n" : "실행에 실패했습니다.\n";
@@ -310,6 +654,75 @@ public partial class MainViewModel : ObservableObject
             IsImageSetupBusy = false;
         }
     }
+
+    /// <summary>모델 자동 다운로드 전 사용자 확인 콜백입니다. (메시지 → true=진행)</summary>
+    public Func<string, bool>? ConfirmImageModelDownload { get; set; }
+
+    /// <summary>
+    /// 이미지 모델이 준비됐는지 확인하고, 없으면 자동으로 내려받아 연결합니다.
+    /// </summary>
+    /// <returns>생성 가능한 모델이 준비되면 true.</returns>
+    public async Task<bool> EnsureComfyModelReadyAsync()
+    {
+        if (!await _imageService.Comfy.IsRunningAsync())
+        {
+            ImageServerStatus = "이미지 서버 상태: ❌ 서버 미실행 — [서버 실행] 후 다시 시도";
+            return false;
+        }
+
+        // 이미 설치된 모델이 있으면 그대로 사용
+        if (await _imageService.Comfy.HasCheckpointAsync())
+        {
+            ImageServerStatus = $"이미지 서버 상태: ✅ 모델 준비됨 ({_imageService.Comfy.CheckpointName})";
+            return true;
+        }
+
+        // 모델이 없으면 자동 다운로드 시도
+        if (!_comfyUiSetupService.IsInstalled(ComfyUiPath))
+        {
+            ImageSetupLog += "설치 폴더를 알 수 없어 자동 다운로드할 수 없습니다. [모델 폴더 열기]로 .safetensors를 직접 넣어주세요.\n";
+            ImageServerStatus = "이미지 서버 상태: ❌ 모델 없음 (수동 배치 필요)";
+            return false;
+        }
+
+        var model = SelectedComfyModel ?? ComfyModels[0];
+        if (ConfirmImageModelDownload is not null &&
+            !ConfirmImageModelDownload($"설치된 이미지 모델이 없습니다.\n'{model.DisplayName}'을(를) 지금 자동으로 내려받을까요?\n({model.Note})"))
+        {
+            return false;
+        }
+
+        IsImageSetupBusy = true;
+        var progress = new Progress<string>(line => ImageSetupLog += line + "\n");
+        try
+        {
+            var ok = await _comfyUiSetupService.DownloadModelAsync(ComfyUiPath, model, progress);
+            if (!ok)
+            {
+                ImageServerStatus = "이미지 서버 상태: ❌ 모델 다운로드 실패";
+                return false;
+            }
+
+            ApplyComfyModel(model);
+            await PersistSettingsAsync();
+
+            var ready = await _imageService.Comfy.HasCheckpointAsync();
+            ImageServerStatus = ready
+                ? $"이미지 서버 상태: ✅ 모델 준비됨 ({model.FileName})"
+                : "이미지 서버 상태: ⚠ 모델 받음 — ComfyUI를 재시작하면 인식됩니다";
+            return ready;
+        }
+        finally
+        {
+            IsImageSetupBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// 이미지 모델을 준비합니다. (버튼용 — 없으면 자동 다운로드)
+    /// </summary>
+    [RelayCommand]
+    private async Task EnsureComfyModelAsync() => await EnsureComfyModelReadyAsync();
 
     // 모델의 파일명과 권장 샘플링 설정을 ComfyUI 백엔드에 적용합니다.
     private void ApplyComfyModel(ComfyUiSetupService.ComfyModel model)
@@ -416,7 +829,8 @@ public partial class MainViewModel : ObservableObject
         StatisticsService statisticsService,
         LocalizationService localizationService,
         ThemeService themeService,
-        SettingsService settingsService)
+        SettingsService settingsService,
+        NovelProjectService novelProjectService)
     {
         _repository = repository;
         _backupService = backupService;
@@ -436,6 +850,7 @@ public partial class MainViewModel : ObservableObject
         _localizationService = localizationService;
         _themeService = themeService;
         _settingsService = settingsService;
+        _novelProjectService = novelProjectService;
 
         _autoSaveTimer = new DispatcherTimer();
         _autoSaveTimer.Tick += async (_, _) => await AutoSaveAsync();
@@ -456,6 +871,7 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     public async Task InitializeAsync()
     {
+        _suppressDirty = true; // 시작 시 로드는 '변경'으로 치지 않음
         await _repository.InitializeAsync();
         var settings = await _settingsService.LoadAsync();
         ApplySettings(settings);
@@ -465,6 +881,8 @@ public partial class MainViewModel : ObservableObject
         Content = content;
         ApplyTheme();
         UpdateStatistics();
+        _suppressDirty = false;
+        IsProjectDirty = false;
 
         UpdateAutoSaveTimer();
 
@@ -1588,6 +2006,7 @@ public partial class MainViewModel : ObservableObject
     partial void OnContentChanged(string value)
     {
         UpdateStatistics();
+        MarkProjectDirty();
 
         // 사용자가 직접 편집하면 잠시 후 맞춤법을 다시 검사합니다.
         // (오타 검사/교체가 유발한 변경은 억제합니다)
@@ -1990,7 +2409,8 @@ public partial class MainViewModel : ObservableObject
             ComfyUiBaseUrl = ComfyUiBaseUrl,
             ComfyUiPath = ComfyUiPath,
             ComfyUiCheckpoint = _imageService.Comfy.CheckpointName,
-            ImageHardware = (SelectedHardware ?? HardwareProfiles[0]).Key
+            ImageHardware = (SelectedHardware ?? HardwareProfiles[0]).Key,
+            ImageStyle = CurrentStyle()
         });
     }
 
@@ -2028,11 +2448,12 @@ public partial class MainViewModel : ObservableObject
         ImageWebUiPath = settings.ImageWebUiPath ?? string.Empty;
         ComfyUiBaseUrl = string.IsNullOrWhiteSpace(settings.ComfyUiBaseUrl) ? "http://127.0.0.1:8188" : settings.ComfyUiBaseUrl;
         ComfyUiPath = settings.ComfyUiPath ?? string.Empty;
-        UseComfyUi = string.Equals(settings.ImageBackend, "ComfyUI", StringComparison.OrdinalIgnoreCase);
+        UseComfyUi = true; // A1111 제거 — ComfyUI만 사용
         SelectedHardware = HardwareProfiles.FirstOrDefault(h => string.Equals(h.Key, settings.ImageHardware, StringComparison.OrdinalIgnoreCase)) ?? HardwareProfiles[0];
         _imageService.A1111.BaseUrl = ImageBaseUrl;
         _imageService.Comfy.BaseUrl = ComfyUiBaseUrl;
         _imageService.Backend = UseComfyUi ? ImageBackendKind.ComfyUi : ImageBackendKind.A1111;
+        LoadStyle(settings.ImageStyle);
         if (!string.IsNullOrWhiteSpace(settings.ComfyUiCheckpoint))
         {
             _imageService.Comfy.CheckpointName = settings.ComfyUiCheckpoint;
