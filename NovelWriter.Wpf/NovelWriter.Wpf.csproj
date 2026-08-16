@@ -10,6 +10,10 @@
     <!-- 어셈블리(exe) 이름에서 .Wpf 제거. 네임스페이스/프로젝트 구조는 유지 -->
     <AssemblyName>NovelWriter</AssemblyName>
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Title>NovelWriter</Title>
+    <Authors>UlsanEther</Authors>
+    <RepositoryUrl>https://github.com/ulsanether/Novel-Writer-WPF</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
