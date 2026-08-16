@@ -168,4 +168,50 @@ AI 채팅·문맥 검사·스토리 플래너·참고자료 생성은 **로컬 L
 - 한글 주석 사용
 - 인덴트: 4칸 (탭 사용 금지)
 
+## 📄 오픈소스 라이센스
+
+이 프로젝트는 다음의 오픈소스 라이브러리 및 리소스를 사용합니다:
+
+### 프로젝트 라이선스
+- **Novel Writer** — MIT License
+
+### 주요 의존성
+
+| 라이브러리 | 버전 | 라이선스 | 용도 |
+|-----------|------|---------|------|
+| **CommunityToolkit.Mvvm** | 8.4.0 | MIT | MVVM 패턴 구현 |
+| **MaterialDesignThemes** | 5.2.1 | MIT | Material Design UI |
+| **MaterialDesignColors** | 5.2.1 | MIT | Material Design 색상 |
+| **DocumentFormat.OpenXml** | 3.3.0 | MIT | DOCX 파일 처리 |
+| **System.Data.SQLite.Core** | 1.0.119 | Public Domain | 로컬 데이터베이스 |
+| **WeCantSpell.Hunspell** | 7.0.1 | MIT | Hunspell 맞춤법 검사 엔진 |
+
+### 한국어 맞춤법 사전
+
+- **hunspell-dict-ko** (한국어 Hunspell 사전) — **GPL-3.0** (combined work)
+  - 소스 코드 및 단어 데이터는 MPL-1.1/GPL-2.0/LGPL-2.1 트라이 라이선스 또는 CC-BY-SA-4.0 / CC-BY-SA-2.0-KR / CC-BY-4.0으로 분배됩니다.
+  - 빌드된 파일(ko.aff, ko.dic)은 GPL-3.0으로 통합 라이선스되며, 이는 본 애플리케이션과 분리된 저작물로 간주되므로 호환성 문제가 없습니다.
+  - 자세한 내용은 `NovelWriter.Wpf/Dictionaries/LICENSE-hunspell-dict-ko.md` 참고
+
+### 외부 서비스/의존 소프트웨어
+
+본 애플리케이션의 AI 기능은 다음의 로컬 오픈소스 소프트웨어와 함께 사용되며, 별도 설치·라이선스가 필요합니다:
+
+| 소프트웨어 | 라이선스 | 역할 |
+|-----------|---------|------|
+| **Ollama** | MIT | 텍스트 LLM 런타임 |
+| **ComfyUI** | GPL-3.0 | 이미지 생성 (Stable Diffusion) |
+
+### 라이선스 준수
+
+이 프로젝트는 모든 오픈소스 라이선스 요구사항을 준수합니다:
+
+- **GPL-3.0**: hunspell-dict-ko 사전은 GPL-3.0으로 라이선스되지만, **실행 파일과 Hunspell 사전은 분리된 저작물**로 간주되어 라이선스 호환성 문제가 없습니다. (출처: https://lwn.net/Articles/481386/)
+- **MIT**: 대부분의 NuGet 패키지는 MIT 라이선스이며 상업 사용이 가능합니다.
+- **Public Domain**: System.Data.SQLite.Core는 Public Domain입니다.
+
+### 기여
+
+이 프로젝트에 기여하실 경우, 추가하는 코드 및 의존성이 위의 라이선스 정책과 호환되도록 해주세요.
+
 
