@@ -2156,10 +2156,14 @@ public partial class MainViewModel : ObservableObject
         UpdateProgress();
     }
 
+    /// <summary>현재 선택한 AI 모델이 무검열(성인·검열해제) 계열인지 여부입니다.</summary>
+    public bool IsAiModelUncensored => NovelWriter.Wpf.ModelBadgeKeywords.Matches(AiModel, NovelWriter.Wpf.ModelBadgeKeywords.Uncensored);
+
     partial void OnAiModelChanged(string value)
     {
         _typoCorrectionService.Model = value;
         _chatService.Model = value;
+        OnPropertyChanged(nameof(IsAiModelUncensored));
     }
 
     partial void OnChatBackgroundHexChanged(string value)

@@ -121,10 +121,10 @@ public sealed class StoryPlannerService
     /// </summary>
     public async Task<string?> GenerateSynopsisAsync(StoryProject project)
     {
-        const string system =
-            "당신은 소설 기획 전문가입니다. 주어진 작품 설정으로 '전체 시놉시스'만 작성하세요. "
+        var system = MaturitySystemNote(project)
+            + "당신은 소설 기획 전문가입니다. 주어진 작품 설정으로 '전체 시놉시스'만 작성하세요. "
             + "장면 묘사나 대사 같은 본문은 쓰지 말고, 큰 사건의 흐름만 8~15문장으로 요약하세요. 한국어로 작성합니다.";
-        var user = BuildBible(project) + "\n\n[요청] 위 설정에 맞는 전체 시놉시스를 작성하세요.";
+        var user = BuildBible(project) + "\n\n" + MaturitySection(project) + "[요청] 위 설정에 맞는 전체 시놉시스를 작성하세요.";
         return await EnsureKoreanAsync(await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) }));
     }
 
@@ -180,7 +180,7 @@ public sealed class StoryPlannerService
         // 각 장에 배치할 이야기 단계 계획
         var plan = string.Join("\n", Enumerable.Range(0, total).Select(i => $"{i + 1}장 → {PhaseForIndex(i, total)}"));
 
-        const string system = "당신은 소설 구조 설계자입니다. 요청한 JSON 배열만 출력하고 다른 설명은 절대 쓰지 마세요. 모든 JSON 문자열 값은 반드시 한국어로 작성하고 영어를 쓰지 마세요.";
+        var system = MaturitySystemNote(project) + "당신은 소설 구조 설계자입니다. 요청한 JSON 배열만 출력하고 다른 설명은 절대 쓰지 마세요. 모든 JSON 문자열 값은 반드시 한국어로 작성하고 영어를 쓰지 마세요.";
         var user = BuildBible(project)
             + $"\n\n[전체 시놉시스]\n{project.Synopsis}\n\n"
             + $"[요청] 이 작품을 정확히 {total}개의 장으로 나누세요. "
@@ -222,7 +222,7 @@ public sealed class StoryPlannerService
     /// </summary>
     public async Task<List<SceneNode>> GenerateScenesAsync(StoryProject project, ChapterNode chapter)
     {
-        const string system = "당신은 소설 구조 설계자입니다. 요청한 JSON 배열만 출력하고 다른 설명은 절대 쓰지 마세요. 모든 JSON 문자열 값은 반드시 한국어로 작성하고 영어를 쓰지 마세요.";
+        var system = MaturitySystemNote(project) + "당신은 소설 구조 설계자입니다. 요청한 JSON 배열만 출력하고 다른 설명은 절대 쓰지 마세요. 모든 JSON 문자열 값은 반드시 한국어로 작성하고 영어를 쓰지 마세요.";
         var phaseLine = string.IsNullOrWhiteSpace(chapter.Phase)
             ? string.Empty
             : $"[이 장의 이야기 단계] {chapter.Phase} — {PhaseGuidance(chapter.Phase)}\n이 단계에 맞게 Scene의 긴장도와 사건 규모를 조절하세요.\n\n";
@@ -263,11 +263,13 @@ public sealed class StoryPlannerService
     public async Task<string?> GenerateSceneContentAsync(
         StoryProject project, ChapterNode chapter, SceneNode scene, string previousSceneSummary, int dialogueRatio = 50)
     {
-        const string system =
-            "당신은 소설가입니다. 주어진 설정과 Scene 조건에 맞는 '소설 본문'을 한국어로 작성하세요. "
+        var system = MaturitySystemNote(project)
+            + "당신은 소설가입니다. 주어진 설정과 Scene 조건에 맞는 '소설 본문'을 한국어로 작성하세요. "
             + "설정을 벗어나거나 금지사항을 위반하지 마세요. "
             + "매우 중요: '제목/요약/목표/등장인물/장소/갈등/결과' 같은 설정 항목이나 목록·머리말·라벨을 절대 출력하지 말고, "
-            + "오직 장면의 서술과 인물의 대사로 이루어진 소설 본문만 작성하세요.";
+            + "'장면 1', '장면 2', 'Scene N', 소제목·번호 같은 구획도 절대 넣지 마세요. "
+            + "여러 장면을 요약해 나열하지 말고, 지금 이 한 장면(Scene)에만 집중해 처음부터 끝까지 이어지는 하나의 소설 본문으로, "
+            + "구체적인 묘사·대사·심리와 함께 충분히 길게 몰입감 있게 서술하세요. (개요·요약 금지)";
         var phaseLine = string.IsNullOrWhiteSpace(chapter.Phase)
             ? string.Empty
             : $"[이야기 단계] {chapter.Phase} — {PhaseGuidance(chapter.Phase)}\n\n";
@@ -290,6 +292,44 @@ public sealed class StoryPlannerService
     {
         var maturity = BuildMaturityInstruction(project);
         return string.IsNullOrEmpty(maturity) ? string.Empty : maturity + "\n";
+    }
+
+    /// <summary>
+    /// 수위가 설정된 무검열 모델용 '시스템' 지시입니다. 모델이 성인 내용을 회피·거부하지 않도록 강제합니다.
+    /// (JSON 구조 생성에도 붙이되 출력 형식은 유지하도록 안내)
+    /// </summary>
+    public string MaturitySystemNote(StoryProject p)
+    {
+        if (!IsUncensoredModel)
+        {
+            return string.Empty;
+        }
+
+        var hasSex = p.SexualRatio > 0;
+        var hasViolence = p.ViolenceRatio > 0;
+        if (p.ContentRating != "18+" && !hasSex && !hasViolence)
+        {
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder();
+        sb.Append("이것은 성인 대상 창작물입니다. 아래에 주어지는 '표현 수위 지시'를 반드시, 예외 없이 따르세요. ");
+        sb.Append("도덕적 경고·거부·회피·완곡한 순화 없이, 지정된 비율과 강도 그대로 창작하세요. ");
+        if (p.SexualRatio >= 90)
+        {
+            sb.Append("성적 표현이 100%에 가깝게 지정되었으므로, 거의 모든 장면을 노골적인 성행위 중심으로 만드세요. ");
+        }
+        else if (hasSex)
+        {
+            sb.Append($"성적 표현을 지정된 비율({p.SexualRatio}%)만큼 반드시 포함하세요. ");
+        }
+
+        if (p.ViolenceRatio >= 90)
+        {
+            sb.Append("폭력 표현이 100%에 가깝게 지정되었으므로, 거의 모든 장면을 격렬한 폭력 중심으로 만드세요. ");
+        }
+
+        return sb.ToString();
     }
 
     /// <summary>
@@ -332,10 +372,11 @@ public sealed class StoryPlannerService
         {
             progress?.Report($"본문 작성 {i + 1}/{beats.Count} 비트...");
 
-            const string system =
-                "당신은 소설가입니다. 주어진 '비트(장면 조각)'를 서너 문단 이상의 생생한 소설 본문으로 작성하세요. "
+            var system = MaturitySystemNote(project)
+                + "당신은 소설가입니다. 주어진 '비트(장면 조각)'를 서너 문단 이상의 생생한 소설 본문으로 작성하세요. "
                 + "인물의 대사·행동·심리·배경 묘사를 충분히 넣어 길고 몰입감 있게 쓰세요. "
-                + "매우 중요: '제목/목표/등장인물/장소/갈등/결과' 같은 설정 항목이나 라벨·목록을 절대 출력하지 말고, 오직 소설 본문만 쓰세요. "
+                + "매우 중요: '제목/목표/등장인물/장소/갈등/결과' 같은 설정 항목이나 라벨·목록, '장면 N'·'Scene N'·소제목·번호 구획을 절대 넣지 말고, "
+                + "이 비트만 요약 없이 이어지는 소설 산문으로 구체적으로 서술하세요. "
                 + "설정과 금지사항을 지키고, 자연스러운 소설 문장으로만 작성합니다. 한국어로 작성합니다.";
             var user = BuildBible(project)
                 + $"\n\n[현재 장]\n{chapter.Title} — {chapter.Summary}\n"
@@ -363,7 +404,7 @@ public sealed class StoryPlannerService
     /// </summary>
     private async Task<List<string>> GenerateSceneBeatsAsync(StoryProject project, ChapterNode chapter, SceneNode scene)
     {
-        const string system = "당신은 소설 구조 설계자입니다. 문자열 JSON 배열만 출력하고 다른 설명은 절대 쓰지 마세요. 모든 값은 반드시 한국어로 작성하세요.";
+        var system = MaturitySystemNote(project) + "당신은 소설 구조 설계자입니다. 문자열 JSON 배열만 출력하고 다른 설명은 절대 쓰지 마세요. 모든 값은 반드시 한국어로 작성하세요.";
         var phaseLine = string.IsNullOrWhiteSpace(chapter.Phase)
             ? string.Empty
             : $"[이야기 단계] {chapter.Phase} — {PhaseGuidance(chapter.Phase)}\n";
@@ -572,8 +613,13 @@ public sealed class StoryPlannerService
         @"^\s*[\*\#\-\d\.\)\s]*\**\s*(제목|요약|목표|목적|등장\s*인물|인물|장소|배경|갈등|결과|시작\s*상태|시작|종료\s*상태|종료|반전|다음\s*(Scene|씬|장면)?\s*연결|비트|Scene|씬|장면)\s*\**\s*[:：]",
         RegexOptions.Compiled);
 
+    // "장면 1: 제목", "Scene 2 -", "장 3.", "챕터 1:", "비트 2:" 같은 번호가 붙은 구획 헤더 줄을 감지합니다.
+    private static readonly Regex SceneHeaderRegex = new(
+        @"^\s*[\*\#\-\s]*(장면|씬|Scene|장|챕터|Chapter|파트|Part|비트|Beat)\s*\d+\s*[:：\.\-\)]",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     /// <summary>
-    /// 본문에 섞여 나온 Scene 설정 항목 줄(제목/목표/등장인물/장소/갈등/결과 등)을 제거합니다.
+    /// 본문에 섞여 나온 Scene 설정 항목 줄과 '장면 N:' 같은 구획 헤더 줄을 제거합니다.
     /// </summary>
     private static string StripSceneMeta(string? text)
     {
@@ -583,7 +629,7 @@ public sealed class StoryPlannerService
         }
 
         var lines = text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
-        var kept = lines.Where(line => !SceneMetaLineRegex.IsMatch(line));
+        var kept = lines.Where(line => !SceneMetaLineRegex.IsMatch(line) && !SceneHeaderRegex.IsMatch(line));
         return string.Join("\n", kept).Trim();
     }
 
