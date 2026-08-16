@@ -381,10 +381,8 @@ public partial class MainViewModel : ObservableObject
     /// <summary>인물 수 목록입니다.</summary>
     public IReadOnlyList<string> StyleCharacterCountOptions => ImageStyleCatalog.CharacterCountLabels;
 
-    /// <summary>콘텐츠 이용 등급 목록입니다. (인물 생성이 아니면 18+ 제외)</summary>
-    public IReadOnlyList<string> StyleContentRatingOptions => StyleIsPersonSubject
-        ? ImageStyleCatalog.ContentRatingLabels
-        : ImageStyleCatalog.ContentRatingLabels.Where(r => r != "18+").ToArray();
+    /// <summary>콘텐츠 이용 등급 목록입니다. (18+는 인물·자유 생성 모두에서 선택 가능)</summary>
+    public IReadOnlyList<string> StyleContentRatingOptions => ImageStyleCatalog.ContentRatingLabels;
 
     /// <summary>현재 생성 대상이 인물(캐릭터)인지 여부입니다. (인물 전용 옵션 표시 제어)</summary>
     [ObservableProperty]
@@ -393,17 +391,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _styleCharacterCount = "자동";
 
-    partial void OnStyleIsPersonSubjectChanged(bool value)
-    {
-        OnPropertyChanged(nameof(StyleContentRatingOptions));
-        // 인물이 아닌데 18+가 선택돼 있으면 15+로 낮춤
-        if (!value && StyleContentRating == "18+")
-        {
-            StyleContentRating = "15+";
-        }
-
-        ApplyImageStyle();
-    }
+    partial void OnStyleIsPersonSubjectChanged(bool value) => ApplyImageStyle();
 
     partial void OnStyleCharacterCountChanged(string value) => ApplyImageStyle();
 
@@ -503,15 +491,11 @@ public partial class MainViewModel : ObservableObject
     private void ApplyImageStyle()
     {
         var style = CurrentStyle();
-        // 인물 생성이 아니면 인물 전용 옵션(촬영범위·인물 수·18+)을 프롬프트에서 제외
+        // 인물 생성이 아니면 인물 전용 옵션(촬영범위·인물 수)만 제외. 콘텐츠 등급(18+ 포함)은 자유 생성에서도 유지.
         if (!StyleIsPersonSubject)
         {
             style.Shot = "자동";
             style.CharacterCount = "자동";
-            if (style.ContentRating == "18+")
-            {
-                style.ContentRating = "15+";
-            }
         }
 
         CurrentStylePrefix = ImageStyleCatalog.BuildPositivePrefix(style);

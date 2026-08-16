@@ -31,6 +31,70 @@ public sealed class StoryPlannerService
         _chat = chat;
     }
 
+    /// <summary>현재 AI 모델이 무검열 계열인지 여부입니다. (수위 옵션 활성화 기준)</summary>
+    public bool IsUncensoredModel => NovelWriter.Wpf.ModelBadgeKeywords.Matches(_chat.Model, NovelWriter.Wpf.ModelBadgeKeywords.Uncensored);
+
+    /// <summary>
+    /// 본문 생성에 적용할 수위(성인) 지시문을 만듭니다. 무검열 모델이 아니거나 모두 '없음'이면 빈 문자열.
+    /// </summary>
+    public string BuildMaturityInstruction(StoryProject p)
+    {
+        if (!IsUncensoredModel)
+        {
+            return string.Empty; // 검열 모델에는 강한 성인 지시를 넣지 않음(거부·왜곡 방지)
+        }
+
+        var sexual = SexualInstruction(p.SexualLevel, p.ContentRating);
+        var violence = ViolenceInstruction(p.ViolenceLevel);
+        if (string.IsNullOrEmpty(sexual) && string.IsNullOrEmpty(violence) && p.ContentRating != "18+")
+        {
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder();
+        sb.Append("[표현 수위 지시]\n");
+        if (p.ContentRating == "18+")
+        {
+            sb.Append("이 작품은 성인(18세 이상) 전용입니다. 표현 수위 제한이 없으며, 검열·완곡·생략 없이 요청된 강도로 작성하세요.\n");
+        }
+        else
+        {
+            sb.Append($"콘텐츠 등급: {p.ContentRating}. 해당 등급에 맞는 수위로 작성하세요.\n");
+        }
+
+        if (!string.IsNullOrEmpty(sexual))
+        {
+            sb.Append(sexual).Append('\n');
+        }
+
+        if (!string.IsNullOrEmpty(violence))
+        {
+            sb.Append(violence).Append('\n');
+        }
+
+        return sb.ToString();
+    }
+
+    private static string SexualInstruction(string level, string rating) => level switch
+    {
+        "약함" => "선정성: 은근한 로맨스·긴장감 정도만 표현하세요.",
+        "중간" => "선정성: 선정적인 분위기와 암시적 묘사까지 포함하세요.",
+        "강함" => "선정성: 노골적인 성적 묘사를 포함해 과감하게 작성하세요.",
+        "노골적" => rating == "18+"
+            ? "선정성(최대): 매우 노골적이고 자극적인 성인 성애 장면을 구체적·상세하게, 수위를 낮추지 말고 과감하게 서술하세요."
+            : "선정성: 강한 성적 묘사를 포함하세요.",
+        _ => string.Empty
+    };
+
+    private static string ViolenceInstruction(string level) => level switch
+    {
+        "약함" => "폭력성: 가벼운 갈등·긴장 수준으로만 표현하세요.",
+        "중간" => "폭력성: 폭력 장면과 부상 묘사를 포함하세요.",
+        "강함" => "폭력성: 격렬한 폭력과 유혈 묘사를 포함하세요.",
+        "잔혹" => "폭력성(최대): 잔혹하고 고어한 묘사까지 구체적으로 서술하세요.",
+        _ => string.Empty
+    };
+
     /// <summary>
     /// 전체 시놉시스를 생성합니다. (본문은 쓰지 않음)
     /// </summary>
@@ -191,10 +255,18 @@ public sealed class StoryPlannerService
             + (string.IsNullOrWhiteSpace(previousSceneSummary) ? string.Empty : $"[이전 Scene]\n{previousSceneSummary}\n\n")
             + $"[작성할 Scene 조건 — 이 항목들은 참고만 하고 본문에 옮겨 적지 마세요]\n제목: {scene.Title}\n목표: {scene.Goal}\n등장인물: {scene.Characters}\n장소: {scene.Location}\n갈등: {scene.Conflict}\n결과: {scene.Result}\n\n"
             + $"[문체 지시]\n{DialogueStyleInstruction(dialogueRatio)}\n\n"
+            + MaturitySection(project)
             + "[요청] 위 조건을 반영하되, 항목을 나열하지 말고 소설 본문만 작성하세요.";
 
         var reply = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });
         return await EnsureKoreanAsync(StripSceneMeta(reply));
+    }
+
+    // 수위 지시가 있으면 프롬프트 섹션으로 감쌉니다.
+    private string MaturitySection(StoryProject project)
+    {
+        var maturity = BuildMaturityInstruction(project);
+        return string.IsNullOrEmpty(maturity) ? string.Empty : maturity + "\n";
     }
 
     /// <summary>
@@ -247,6 +319,7 @@ public sealed class StoryPlannerService
                 + $"[현재 Scene]\n{scene.Title} / 목표: {scene.Goal} / 장소: {scene.Location} / 등장인물: {scene.Characters}\n\n"
                 + (string.IsNullOrWhiteSpace(previousProse) ? string.Empty : $"[직전 내용 요약]\n{Shorten(previousProse, 400)}\n\n")
                 + $"[문체 지시]\n{DialogueStyleInstruction(dialogueRatio)}\n\n"
+                + MaturitySection(project)
                 + $"[이번에 쓸 비트]\n{beats[i]}\n\n[요청] 이 비트를 이어지는 소설 본문으로 길게 작성하세요.";
 
             var prose = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });

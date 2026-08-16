@@ -97,6 +97,16 @@ public partial class StoryProject : ObservableObject
     /// <summary>모든 이미지에 공통 적용할 화풍 프리픽스(영어)입니다.</summary>
     [ObservableProperty] private string _imageStylePrefix = "storybook illustration, soft lighting, detailed";
 
+    // ── 본문 수위(성인) 설정 · 무검열 모델에서만 강하게 반영 ──
+    /// <summary>콘텐츠 이용 등급입니다. (전체/12+/15+/18+)</summary>
+    [ObservableProperty] private string _contentRating = "전체 이용가";
+
+    /// <summary>선정성 수위입니다. (없음/약함/중간/강함/노골적)</summary>
+    [ObservableProperty] private string _sexualLevel = "없음";
+
+    /// <summary>폭력·잔혹 수위입니다. (없음/약함/중간/강함/잔혹)</summary>
+    [ObservableProperty] private string _violenceLevel = "없음";
+
     // ── 장/Scene ──
     /// <summary>장 목록입니다.</summary>
     public ObservableCollection<ChapterNode> Chapters { get; set; } = new();
