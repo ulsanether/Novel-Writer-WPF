@@ -116,10 +116,16 @@
                         Content="이미지 생성"
                         Style="{StaticResource MaterialDesignRaisedButton}" />
                     <Button
+                        Margin="0,0,6,0"
                         Command="{Binding InsertImageCommand}"
                         Content="본문에 삽입"
                         Style="{StaticResource MaterialDesignOutlinedButton}"
                         ToolTip="생성된 이미지를 원고 본문에 삽입합니다." />
+                    <Button
+                        Command="{Binding SaveImageAsFileCommand}"
+                        Content="파일로 저장"
+                        Style="{StaticResource MaterialDesignOutlinedButton}"
+                        ToolTip="생성된 이미지를 원하는 위치에 PNG로 저장합니다." />
                 </StackPanel>
                 <Image
                     MaxHeight="200"

@@ -401,7 +401,10 @@ public partial class StoryPlannerViewModel : ObservableObject
             }
 
             character.ImageSeed = result.Seed;
-            character.ReferenceImagePath = SaveImage("Characters/Sheets", character.Name, result.ImageBytes);
+            var charPath = SaveImage("Characters/Sheets", character.Name, result.ImageBytes);
+            // 같은 파일명 덮어쓰기 시 경로가 동일해 미리보기가 안 바뀌므로 강제로 다시 바인딩
+            character.ReferenceImagePath = string.Empty;
+            character.ReferenceImagePath = charPath;
         });
     }
 
@@ -458,7 +461,10 @@ public partial class StoryPlannerViewModel : ObservableObject
             }
 
             scene.IllustrationSeed = result.Seed;
-            scene.IllustrationPath = SaveImage("Illustrations", $"{chapter.Title}_{scene.Title}", result.ImageBytes);
+            var scenePath = SaveImage("Illustrations", $"{chapter.Title}_{scene.Title}", result.ImageBytes);
+            // 같은 파일명 덮어쓰기 시 경로가 동일해 미리보기가 안 바뀌므로 강제로 다시 바인딩
+            scene.IllustrationPath = string.Empty;
+            scene.IllustrationPath = scenePath;
         });
     }
 

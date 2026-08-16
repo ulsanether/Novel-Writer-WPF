@@ -454,6 +454,17 @@ public partial class MainWindow : Window
         };
         viewModel.LaunchImageServerCallback = () => _viewModel.LaunchImageServerCommand.Execute(null);
         viewModel.EnsureImageModel = () => _viewModel.EnsureComfyModelReadyAsync();
+        viewModel.ImageSaveAsResolver = suggested =>
+        {
+            var dialog = new SaveFileDialog
+            {
+                Title = "이미지 파일로 저장",
+                Filter = "PNG 이미지 (*.png)|*.png|모든 파일 (*.*)|*.*",
+                DefaultExt = ".png",
+                FileName = suggested
+            };
+            return Task.FromResult(dialog.ShowDialog(this) == true ? dialog.FileName : null);
+        };
         viewModel.ConfirmStyleBeforeGenerate = () =>
         {
             var ok = ShowImageStyleDialog(window);

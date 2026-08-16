@@ -341,6 +341,41 @@ public partial class ReferenceGeneratorViewModel : ObservableObject
         }
     }
 
+    /// <summary>생성 이미지를 파일로 저장할 경로 선택 콜백입니다. (제안 파일명 → 저장 경로)</summary>
+    public Func<string, Task<string?>>? ImageSaveAsResolver { get; set; }
+
+    /// <summary>생성된 이미지를 사용자가 지정한 위치에 파일로 저장합니다.</summary>
+    [RelayCommand]
+    private async Task SaveImageAsFileAsync()
+    {
+        if (string.IsNullOrWhiteSpace(GeneratedImagePath) || !File.Exists(GeneratedImagePath))
+        {
+            StatusMessage = "저장할 이미지가 없습니다. 먼저 이미지를 생성하세요.";
+            return;
+        }
+
+        if (ImageSaveAsResolver is null)
+        {
+            return;
+        }
+
+        var dest = await ImageSaveAsResolver(Path.GetFileName(GeneratedImagePath));
+        if (string.IsNullOrWhiteSpace(dest))
+        {
+            return;
+        }
+
+        try
+        {
+            File.Copy(GeneratedImagePath, dest, overwrite: true);
+            StatusMessage = $"이미지를 저장했습니다: {Path.GetFileName(dest)}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "저장 오류: " + ex.Message;
+        }
+    }
+
     /// <summary>이미지 서버를 실행하고 잠시 후 연결을 확인합니다.</summary>
     [RelayCommand]
     private async Task LaunchImageServerAsync()
@@ -438,8 +473,11 @@ public partial class ReferenceGeneratorViewModel : ObservableObject
                 return;
             }
 
-            GeneratedImagePath = SaveImage(ImageSubFolderFor(DocType), BuildFileNameBase(), result.ImageBytes);
-            StatusMessage = $"이미지 저장 완료: {Path.GetFileName(GeneratedImagePath)}";
+            var savedPath = SaveImage(ImageSubFolderFor(DocType), BuildFileNameBase(), result.ImageBytes);
+            // 같은 파일명으로 덮어쓰면 경로가 동일해 미리보기가 갱신되지 않으므로 강제로 다시 바인딩합니다.
+            GeneratedImagePath = string.Empty;
+            GeneratedImagePath = savedPath;
+            StatusMessage = $"이미지 저장 완료: {Path.GetFileName(savedPath)}";
         }
         catch (Exception ex)
         {
