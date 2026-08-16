@@ -12,6 +12,7 @@
     TextElement.Foreground="{DynamicResource MaterialDesignBody}">
 
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <Style x:Key="Cap" TargetType="TextBlock">
             <Setter Property="Margin" Value="0,0,0,2" />
             <Setter Property="FontSize" Value="12" />
@@ -68,20 +69,27 @@
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Margin="0,0,0,6" FontWeight="SemiBold" Text="구도 · 카메라" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Margin="0,0,4,0">
-                                <TextBlock Style="{StaticResource Cap}" Text="촬영 범위" />
-                                <ComboBox ItemsSource="{Binding StyleShotOptions}" SelectedItem="{Binding StyleShot}" Style="{StaticResource MaterialDesignOutlinedComboBox}" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Margin="4,0,0,0">
-                                <TextBlock Style="{StaticResource Cap}" Text="카메라 각도" />
-                                <ComboBox ItemsSource="{Binding StyleCameraAngleOptions}" SelectedItem="{Binding StyleCameraAngle}" Style="{StaticResource MaterialDesignOutlinedComboBox}" />
-                            </StackPanel>
-                        </Grid>
+                        <TextBlock Style="{StaticResource Cap}" Text="카메라 각도" />
+                        <ComboBox Margin="0,0,0,8" ItemsSource="{Binding StyleCameraAngleOptions}" SelectedItem="{Binding StyleCameraAngle}" Style="{StaticResource MaterialDesignOutlinedComboBox}" />
+
+                        <!-- 인물 전용 옵션: 인물 생성일 때만 표시 -->
+                        <StackPanel Visibility="{Binding StyleIsPersonSubject, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Margin="0,4,0,4" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryHueMidBrush}" Text="👤 인물 옵션" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                    <TextBlock Style="{StaticResource Cap}" Text="촬영 범위 (전신/상반신 등)" />
+                                    <ComboBox ItemsSource="{Binding StyleShotOptions}" SelectedItem="{Binding StyleShot}" Style="{StaticResource MaterialDesignOutlinedComboBox}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                    <TextBlock Style="{StaticResource Cap}" Text="인물 수" />
+                                    <ComboBox ItemsSource="{Binding StyleCharacterCountOptions}" SelectedItem="{Binding StyleCharacterCount}" Style="{StaticResource MaterialDesignOutlinedComboBox}" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 

@@ -196,14 +196,21 @@
                                                     HorizontalAlignment="Left"
                                                     Source="{Binding ReferenceImagePath, Converter={StaticResource PathToImage}}"
                                                     Stretch="Uniform" />
-                                                <Button
-                                                    Margin="0,4,0,0"
-                                                    Padding="8,2"
-                                                    HorizontalAlignment="Left"
-                                                    Command="{Binding DataContext.InsertCharacterImageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                    CommandParameter="{Binding}"
-                                                    Content="본문에 삽입"
-                                                    Style="{StaticResource MaterialDesignOutlinedButton}" />
+                                                <WrapPanel Margin="0,4,0,0">
+                                                    <Button
+                                                        Margin="0,0,6,0"
+                                                        Padding="8,2"
+                                                        Command="{Binding DataContext.InsertCharacterImageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        Content="본문에 삽입"
+                                                        Style="{StaticResource MaterialDesignOutlinedButton}" />
+                                                    <Button
+                                                        Padding="8,2"
+                                                        Command="{Binding DataContext.SaveCharacterImageAsFileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        Content="파일로 저장"
+                                                        Style="{StaticResource MaterialDesignOutlinedButton}" />
+                                                </WrapPanel>
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>
@@ -583,10 +590,16 @@
                                 Content="삽화 생성"
                                 Style="{StaticResource MaterialDesignRaisedButton}" />
                             <Button
+                                Margin="0,0,6,0"
                                 Command="{Binding InsertSceneImageCommand}"
                                 Content="본문에 삽입"
                                 Style="{StaticResource MaterialDesignOutlinedButton}"
                                 ToolTip="생성된 삽화를 원고 본문(커서 위치)에 삽입합니다." />
+                            <Button
+                                Command="{Binding SaveSceneImageAsFileCommand}"
+                                Content="파일로 저장"
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                ToolTip="생성된 삽화를 원하는 위치에 PNG로 저장합니다." />
                         </StackPanel>
                         <Image
                             MaxHeight="340"

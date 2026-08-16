@@ -465,8 +465,9 @@ public partial class MainWindow : Window
             };
             return Task.FromResult(dialog.ShowDialog(this) == true ? dialog.FileName : null);
         };
-        viewModel.ConfirmStyleBeforeGenerate = () =>
+        viewModel.ConfirmStyleBeforeGenerate = isPerson =>
         {
+            _viewModel.StyleIsPersonSubject = isPerson;
             var ok = ShowImageStyleDialog(window);
             if (ok)
             {
@@ -505,7 +506,18 @@ public partial class MainWindow : Window
                     : _viewModel.Content + "\n\n" + text;
             },
             GetManuscript = () => _viewModel.Content ?? string.Empty,
-            InsertImageToEditor = InsertImageIntoEditor
+            InsertImageToEditor = InsertImageIntoEditor,
+            ImageSaveAsResolver = suggested =>
+            {
+                var dialog = new SaveFileDialog
+                {
+                    Title = "이미지 파일로 저장",
+                    Filter = "PNG 이미지 (*.png)|*.png|모든 파일 (*.*)|*.*",
+                    DefaultExt = ".png",
+                    FileName = suggested
+                };
+                return Task.FromResult(dialog.ShowDialog(this) == true ? dialog.FileName : null);
+            }
         };
 
         var window = new StoryPlannerWindow(viewModel) { Owner = this };
@@ -528,8 +540,9 @@ public partial class MainWindow : Window
         // 생성 전 모델 준비(없으면 자동 다운로드)
         viewModel.EnsureImageModel = () => _viewModel.EnsureComfyModelReadyAsync();
         // 생성 버튼 → 화풍 설정 팝업 (확인 시 현재 화풍을 설계에 반영)
-        viewModel.ConfirmStyleBeforeGenerate = () =>
+        viewModel.ConfirmStyleBeforeGenerate = isPerson =>
         {
+            _viewModel.StyleIsPersonSubject = isPerson;
             var ok = ShowImageStyleDialog(window);
             if (ok)
             {

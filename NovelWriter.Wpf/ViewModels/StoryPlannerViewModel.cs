@@ -26,8 +26,11 @@ public partial class StoryPlannerViewModel : ObservableObject
     /// <summary>생성 이미지를 메인 에디터 본문에 삽입하는 콜백입니다. (경로)</summary>
     public Action<string>? InsertImageToEditor { get; set; }
 
-    /// <summary>생성 직전 화풍 설정 팝업을 띄우는 콜백입니다. (true=생성 진행, false=취소)</summary>
-    public Func<bool>? ConfirmStyleBeforeGenerate { get; set; }
+    /// <summary>생성 이미지를 파일로 저장할 경로 선택 콜백입니다. (제안 파일명 → 저장 경로)</summary>
+    public Func<string, Task<string?>>? ImageSaveAsResolver { get; set; }
+
+    /// <summary>생성 직전 화풍 설정 팝업을 띄우는 콜백입니다. (인자=인물 생성 여부, 반환 true=생성 진행)</summary>
+    public Func<bool, bool>? ConfirmStyleBeforeGenerate { get; set; }
 
     /// <summary>"다른 이름으로 저장" 경로 선택 콜백입니다.</summary>
     public Func<Task<string?>>? SaveAsPathResolver { get; set; }
@@ -315,6 +318,45 @@ public partial class StoryPlannerViewModel : ObservableObject
         }
     }
 
+    /// <summary>선택 씬의 삽화를 파일로 저장합니다.</summary>
+    [RelayCommand]
+    private Task SaveSceneImageAsFile() => SaveImageFileAsync(SelectedScene?.IllustrationPath);
+
+    /// <summary>캐릭터 이미지를 파일로 저장합니다.</summary>
+    [RelayCommand]
+    private Task SaveCharacterImageAsFile(StoryCharacter? character) => SaveImageFileAsync(character?.ReferenceImagePath);
+
+    // 이미지 파일을 사용자가 지정한 위치로 복사 저장합니다.
+    private async Task SaveImageFileAsync(string? sourcePath)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
+        {
+            StatusMessage = "저장할 이미지가 없습니다. 먼저 이미지를 생성하세요.";
+            return;
+        }
+
+        if (ImageSaveAsResolver is null)
+        {
+            return;
+        }
+
+        var dest = await ImageSaveAsResolver(Path.GetFileName(sourcePath));
+        if (string.IsNullOrWhiteSpace(dest))
+        {
+            return;
+        }
+
+        try
+        {
+            File.Copy(sourcePath, dest, overwrite: true);
+            StatusMessage = $"이미지를 저장했습니다: {Path.GetFileName(dest)}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "저장 오류: " + ex.Message;
+        }
+    }
+
     /// <summary>
     /// 이미지 모델을 준비합니다. (없으면 자동 다운로드)
     /// </summary>
@@ -361,8 +403,8 @@ public partial class StoryPlannerViewModel : ObservableObject
             return;
         }
 
-        // 생성 전 화풍 설정 팝업 (취소 시 생성 안 함)
-        if (ConfirmStyleBeforeGenerate is not null && !ConfirmStyleBeforeGenerate())
+        // 생성 전 화풍 설정 팝업 (캐릭터=인물 생성). 취소 시 생성 안 함
+        if (ConfirmStyleBeforeGenerate is not null && !ConfirmStyleBeforeGenerate(true))
         {
             return;
         }
@@ -419,8 +461,8 @@ public partial class StoryPlannerViewModel : ObservableObject
             return;
         }
 
-        // 생성 전 화풍 설정 팝업 (취소 시 생성 안 함)
-        if (ConfirmStyleBeforeGenerate is not null && !ConfirmStyleBeforeGenerate())
+        // 생성 전 화풍 설정 팝업 (씬은 인물 생성이 아님). 취소 시 생성 안 함
+        if (ConfirmStyleBeforeGenerate is not null && !ConfirmStyleBeforeGenerate(false))
         {
             return;
         }

@@ -44,6 +44,9 @@ public sealed class ImageStyleSettings
     /// <summary>콘텐츠 이용 등급 라벨입니다. (등장인물 연령과 별개)</summary>
     public string ContentRating { get; set; } = "전체 이용가";
 
+    /// <summary>인물 수 라벨입니다. (인물 생성일 때만 사용)</summary>
+    public string CharacterCount { get; set; } = "자동";
+
     // ── 핵심 슬라이더(0~100) ──
 
     /// <summary>현실감입니다. (0 스타일화 ~ 100 실사)</summary>
@@ -72,7 +75,8 @@ public sealed class ImageStyleSettings
         ContentRating = ContentRating,
         Realism = Realism,
         Detail = Detail,
-        BackgroundComplexity = BackgroundComplexity
+        BackgroundComplexity = BackgroundComplexity,
+        CharacterCount = CharacterCount
     };
 }
 
@@ -219,6 +223,19 @@ public static class ImageStyleCatalog
     /// <summary>콘텐츠 이용 등급 라벨입니다. (프롬프트 부정에 영향)</summary>
     public static IReadOnlyList<string> ContentRatingLabels { get; } = new[] { "전체 이용가", "12+", "15+", "18+" };
 
+    /// <summary>인물 수: 라벨 → 긍정. (인물 생성 전용)</summary>
+    public static readonly IReadOnlyList<(string Label, string Positive)> CharacterCounts = new[]
+    {
+        ("자동", ""),
+        ("1명", "solo, single person"),
+        ("2명", "two people, 2characters"),
+        ("3명", "three people, group of three"),
+        ("다수", "multiple people, group, crowd")
+    };
+
+    /// <summary>인물 수 라벨 목록입니다.</summary>
+    public static IReadOnlyList<string> CharacterCountLabels { get; } = CharacterCounts.Select(p => p.Label).ToArray();
+
     /// <summary>촬영 범위 라벨 목록입니다.</summary>
     public static IReadOnlyList<string> ShotLabels { get; } = Shots.Select(p => p.Label).ToArray();
 
@@ -244,6 +261,7 @@ public static class ImageStyleCatalog
             FindPreset(s.Preset).Positive,
             LookupQ(Qualities, s.Quality),
             LookupQ(Shots, s.Shot),
+            LookupQ(CharacterCounts, s.CharacterCount),
             LookupQ(CameraAngles, s.CameraAngle),
             LookupQ(Lightings, s.Lighting),
             LookupQ(ColorMoods, s.ColorMood),
@@ -253,10 +271,15 @@ public static class ImageStyleCatalog
             RealismFragment(s.Realism),
             DetailFragment(s.Detail),
             BackgroundComplexityFragment(s.BackgroundComplexity),
+            ContentRatingPositive(s.ContentRating),
             s.ExtraPositive?.Trim() ?? string.Empty
         };
         return string.Join(", ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
     }
+
+    // 콘텐츠 이용 등급에 따른 긍정 프롬프트. (18+는 성인물을 명시적으로 유도)
+    private static string ContentRatingPositive(string rating)
+        => rating == "18+" ? "nsfw, explicit, adult content, mature, uncensored" : string.Empty;
 
     private static string RealismFragment(int v)
         => v <= 25 ? "stylized, artistic" : v >= 75 ? "photorealistic, lifelike detail" : string.Empty;

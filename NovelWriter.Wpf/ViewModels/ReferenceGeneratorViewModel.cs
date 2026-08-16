@@ -34,8 +34,8 @@ public partial class ReferenceGeneratorViewModel : ObservableObject
     /// <summary>생성 이미지를 메인 에디터 본문에 삽입하는 콜백입니다. (경로)</summary>
     public Action<string>? InsertImageToEditor { get; set; }
 
-    /// <summary>생성 직전 화풍 설정 팝업을 띄우는 콜백입니다. (true=생성 진행)</summary>
-    public Func<bool>? ConfirmStyleBeforeGenerate { get; set; }
+    /// <summary>생성 직전 화풍 설정 팝업을 띄우는 콜백입니다. (인자=인물 생성 여부, 반환 true=생성 진행)</summary>
+    public Func<bool, bool>? ConfirmStyleBeforeGenerate { get; set; }
 
     /// <summary>
     /// 뷰모델을 초기화합니다.
@@ -409,8 +409,8 @@ public partial class ReferenceGeneratorViewModel : ObservableObject
             return;
         }
 
-        // 생성 전 화풍 설정 팝업 (취소 시 생성 안 함)
-        if (ConfirmStyleBeforeGenerate is not null && !ConfirmStyleBeforeGenerate())
+        // 생성 전 화풍 설정 팝업 (캐릭터 유형이면 인물 생성). 취소 시 생성 안 함
+        if (ConfirmStyleBeforeGenerate is not null && !ConfirmStyleBeforeGenerate(DocType.Contains("캐릭터")))
         {
             return;
         }
@@ -503,7 +503,8 @@ public partial class ReferenceGeneratorViewModel : ObservableObject
         });
     }
 
-    // 유형별 구도 힌트를 반환합니다. (화풍은 StylePrefix가 담당) — 영화/애니 설정 시트 스타일
+    // 유형별 구도 힌트를 반환합니다. (화풍은 StylePrefix가 담당)
+    // 캐릭터만 '설정 시트(턴어라운드)', 나머지는 유형에 맞는 일반 구도로.
     private static string CompositionHintFor(string docType)
     {
         if (docType.Contains("캐릭터"))
@@ -518,23 +519,18 @@ public partial class ReferenceGeneratorViewModel : ObservableObject
 
         if (docType.Contains("장소") || docType.Contains("배경") || docType.Contains("풍경"))
         {
-            // 배경 디자인 시트: 여러 각도의 같은 장소
-            return "environment design sheet, background concept art, location reference sheet, "
-                + "multiple angle views of the same place, wide establishing shot, "
-                + "layout sheet, clean presentation, concept art, ";
+            // 배경: 일반 배경 아트 (멀티뷰 강제하지 않음)
+            return "scenery, background art, wide shot, ";
         }
 
-        // 그 외(세계관·소품·용어 등): 디자인/설정 시트
-        return "reference design sheet, model sheet, multiple views, "
-            + "concept art layout, orthographic views, clean plain background, ";
+        // 그 외(세계관·소품·용어·시놉시스 등): 강제 구도 없이 내용에 맞는 일러스트로
+        return string.Empty;
     }
 
     // 설정 시트는 여러 뷰가 가로로 배치되므로 넓은 캔버스가 유리합니다. (해상도 override)
+    // 캐릭터 턴어라운드만 가로로 넓게, 나머지는 화풍 설정 해상도를 그대로 사용합니다.
     private static (int Width, int Height)? SheetResolutionFor(string docType)
-    {
-        // 캐릭터 턴어라운드/디자인 시트는 가로로 넓게
-        return new(1216, 832);
-    }
+        => docType.Contains("캐릭터") ? new(1216, 832) : null;
 
     // 유형별 이미지 저장 하위 폴더를 반환합니다.
     private static string ImageSubFolderFor(string docType)
