@@ -78,8 +78,8 @@ public sealed class StoryPlannerService
     // 등급에 따른 성적 표현 강도(노골적/암시적)를 결정합니다.
     private static string SexualIntensity(string rating) => rating switch
     {
-        "18+" => "노골적이고 구체적인 성애 묘사",
-        "15+" => "선정적이고 암시적인 묘사(직접적 노출은 자제)",
+        "18+" => "성교(성관계·삽입)·구강·애무·나체·신체 부위·체액·신음·오르가슴까지 완곡어·은유·생략 없이 직접적이고 구체적인 단어로 노골적으로 묘사",
+        "15+" => "선정적이고 암시적인 묘사(직접적 노출·성행위 표현은 자제)",
         _ => "은근한 로맨스·긴장감 정도"
     };
 
@@ -281,7 +281,8 @@ public sealed class StoryPlannerService
             + $"[작성할 Scene 조건 — 이 항목들은 참고만 하고 본문에 옮겨 적지 마세요]\n제목: {scene.Title}\n목표: {scene.Goal}\n등장인물: {scene.Characters}\n장소: {scene.Location}\n갈등: {scene.Conflict}\n결과: {scene.Result}\n\n"
             + $"[문체 지시]\n{DialogueStyleInstruction(dialogueRatio)}\n\n"
             + MaturitySection(project)
-            + "[요청] 위 조건을 반영하되, 항목을 나열하지 말고 소설 본문만 작성하세요.";
+            + BodyMaturityDirective(project)
+            + "[요청] 위 조건을 반영하되(특히 '비율 지시 · 최우선'을 반드시 지키세요), 항목을 나열하지 말고 소설 본문만 작성하세요.";
 
         var reply = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });
         return await EnsureKoreanAsync(StripSceneMeta(reply));
@@ -292,6 +293,64 @@ public sealed class StoryPlannerService
     {
         var maturity = BuildMaturityInstruction(project);
         return string.IsNullOrEmpty(maturity) ? string.Empty : maturity + "\n";
+    }
+
+    /// <summary>
+    /// '본문 작성' 전용 수위 지시입니다. 선정성/폭력 비율을 본문 분량 기준으로 강하게 지정하고,
+    /// 장면 조건보다 우선하도록 명시합니다. (100%면 본문 전체가 해당 장면)
+    /// </summary>
+    public string BodyMaturityDirective(StoryProject p)
+    {
+        if (!IsUncensoredModel)
+        {
+            return string.Empty;
+        }
+
+        var explicitAdult = p.ContentRating == "18+";
+        var sb = new StringBuilder();
+
+        if (p.SexualRatio > 0)
+        {
+            sb.Append("[성적 묘사 비율 지시 · 최우선] ");
+            if (p.SexualRatio >= 90)
+            {
+                sb.Append("이 본문(장면)은 처음부터 끝까지 성교(성관계) 장면으로 채우세요. 장면의 목표·갈등·결과나 다른 흐름과 상관없이, "
+                    + "본문의 거의 전부(약 100%)가 실제 성행위(전희·애무·삽입·절정)와 나체·신체 부위·체액·신음·호흡·대사의 구체적 묘사여야 합니다. 비성적인 배경 설명·이동·잡담은 최소화하세요.");
+            }
+            else if (p.SexualRatio >= 60)
+            {
+                sb.Append($"본문의 상당 부분(약 {p.SexualRatio}%)을 실제 성교·애무·나체 장면으로 채우세요. 장면 흐름 사이사이에 노골적 성적 묘사를 충분히, 길게 배치합니다.");
+            }
+            else
+            {
+                sb.Append($"본문에서 성적/성교 장면이 차지하는 분량을 약 {p.SexualRatio}%로 맞추세요.");
+            }
+
+            sb.Append(explicitAdult
+                ? " 18+ 등급이므로 완곡어·은유·생략·순화 없이, 성교·삽입·나체·신체 부위·체액 등을 직접적이고 노골적인 단어로 매우 구체적으로 서술하세요.\n"
+                : " 등급에 맞는 강도로 표현하세요.\n");
+        }
+
+        if (p.ViolenceRatio > 0)
+        {
+            sb.Append("[폭력 묘사 비율 지시 · 최우선] ");
+            if (p.ViolenceRatio >= 90)
+            {
+                sb.Append("본문 거의 전부를 격렬한 폭력·전투·유혈 장면으로 채우세요.");
+            }
+            else if (p.ViolenceRatio >= 60)
+            {
+                sb.Append($"본문의 상당 부분(약 {p.ViolenceRatio}%)을 폭력 장면으로 채우세요.");
+            }
+            else
+            {
+                sb.Append($"본문에서 폭력·잔혹 장면의 분량을 약 {p.ViolenceRatio}%로 맞추세요.");
+            }
+
+            sb.Append(explicitAdult ? " 잔혹하고 고어한 묘사까지 구체적으로 서술하세요.\n" : "\n");
+        }
+
+        return sb.ToString();
     }
 
     /// <summary>
@@ -338,17 +397,34 @@ public sealed class StoryPlannerService
     private static string DialogueStyleInstruction(int dialogueRatio)
     {
         var ratio = Math.Clamp(dialogueRatio, 0, 100);
-        if (ratio >= 95)
+
+        // 모델이 '퍼센트'를 잘 못 지키므로 단계별로 '문장 개수 감각'과 구체 지시를 함께 준다.
+        if (ratio >= 90)
         {
-            return "이 본문은 거의 전부 인물의 '대사'로만 구성하세요. 서술·묘사는 최소화하고 대화(따옴표) 위주로 작성합니다.";
+            return "문체: 거의 전부 인물의 '대사(따옴표 대화)'로만 진행하세요. 대사가 문장 대부분을 차지하고, 서술·묘사는 대사 사이 최소한의 지문(누가 말했는지, 짧은 행동)만 허용합니다. 배경·심리 묘사 문단은 넣지 마세요.";
         }
 
-        if (ratio <= 5)
+        if (ratio >= 70)
         {
-            return "이 본문은 대사 없이 '묘사와 서술'로만 구성하세요. 인물의 대사(따옴표 대화)를 넣지 마세요.";
+            return $"문체: '대사 중심'으로 쓰세요(대략 대사 {ratio}% / 묘사 {100 - ratio}%). 인물들이 주고받는 대화가 장면을 이끌고, 묘사·서술은 대사를 잇는 짧은 지문 정도로만 넣습니다.";
         }
 
-        return $"대사와 묘사의 비율을 대략 대사 {ratio}% / 묘사 {100 - ratio}%로 맞춰 작성하세요.";
+        if (ratio >= 45)
+        {
+            return $"문체: 대사와 묘사를 균형 있게 섞으세요(대략 대사 {ratio}% / 묘사 {100 - ratio}%). 대화 몇 마디 뒤에 배경·행동·심리 묘사 문단을 번갈아 배치합니다.";
+        }
+
+        if (ratio >= 20)
+        {
+            return $"문체: '묘사·서술 중심'으로 쓰되 대사를 가끔 넣으세요(대략 대사 {ratio}% / 묘사 {100 - ratio}%). 배경·행동·심리 묘사가 대부분을 차지하고, 대사는 장면의 전환점에서만 짧게 등장합니다.";
+        }
+
+        if (ratio >= 5)
+        {
+            return "문체: 대사를 거의 쓰지 말고 '묘사와 서술' 위주로 쓰세요. 꼭 필요한 한두 마디 외에는 따옴표 대화를 넣지 않습니다.";
+        }
+
+        return "문체: 대사(따옴표 대화)를 전혀 넣지 말고, 오직 '묘사와 서술'로만 장면을 구성하세요. 인물의 말은 간접화법(예: 그는 떠나겠다고 말했다)으로만 처리합니다.";
     }
 
     /// <summary>
@@ -384,7 +460,8 @@ public sealed class StoryPlannerService
                 + (string.IsNullOrWhiteSpace(previousProse) ? string.Empty : $"[직전 내용 요약]\n{Shorten(previousProse, 400)}\n\n")
                 + $"[문체 지시]\n{DialogueStyleInstruction(dialogueRatio)}\n\n"
                 + MaturitySection(project)
-                + $"[이번에 쓸 비트]\n{beats[i]}\n\n[요청] 이 비트를 이어지는 소설 본문으로 길게 작성하세요.";
+                + BodyMaturityDirective(project)
+                + $"[이번에 쓸 비트]\n{beats[i]}\n\n[요청] 이 비트를 이어지는 소설 본문으로 길게 작성하세요('비율 지시 · 최우선'을 반드시 지키세요).";
 
             var prose = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });
             var cleaned = StripSceneMeta(prose);

@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -154,7 +154,7 @@ public partial class StoryPlannerViewModel : ObservableObject
     public IReadOnlyList<string> GenreSamples { get; } = new[]
     {
         "SF", "판타지", "로맨스", "로맨스 판타지", "스릴러", "미스터리", "추리",
-        "호러", "무협", "역사", "드라마", "액션", "성장물", "코미디", "느와르", "디스토피아"
+        "호러", "무협", "역사", "드라마", "액션", "성장물", "코미디", "느와르", "디스토피아","성인물"
     };
 
     /// <summary>시대 샘플 목록입니다.</summary>
