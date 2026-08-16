@@ -79,6 +79,20 @@
                                 materialDesign:HintAssist.Hint="장 수"
                                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
                                 Text="{Binding Project.ChapterCount}" />
+
+                            <!--  본문 수위(성인) 설정 — 무검열 모델일 때만. 장→씬 분할·본문 생성에 반영  -->
+                            <Border Padding="10" Background="#33D84315" CornerRadius="6" Visibility="{Binding IsUncensoredModel, Converter={StaticResource BoolToVis}}">
+                                <StackPanel>
+                                    <TextBlock Margin="0,0,0,6" FontWeight="SemiBold" Foreground="#FFFF8A65" Text="🔞 표현 수위 (무검열 모델 전용)" />
+                                    <TextBlock Margin="0,0,0,2" FontSize="11" Text="이용 등급" />
+                                    <ComboBox Margin="0,0,0,8" ItemsSource="{Binding ContentRatingOptions}" SelectedItem="{Binding Project.ContentRating}" Style="{StaticResource MaterialDesignOutlinedComboBox}" />
+                                    <TextBlock Margin="0,0,0,2" FontSize="11" Text="{Binding Project.SexualRatio, StringFormat=선정성 비율: {0}% (본문에서 성적 장면 비중)}" />
+                                    <Slider Margin="0,0,0,8" IsSnapToTickEnabled="True" Maximum="100" Minimum="0" TickFrequency="5" Value="{Binding Project.SexualRatio}" />
+                                    <TextBlock Margin="0,0,0,2" FontSize="11" Text="{Binding Project.ViolenceRatio, StringFormat=폭력·잔혹 비율: {0}% (본문에서 폭력 장면 비중)}" />
+                                    <Slider IsSnapToTickEnabled="True" Maximum="100" Minimum="0" TickFrequency="5" Value="{Binding Project.ViolenceRatio}" />
+                                    <TextBlock Margin="0,6,0,0" FontSize="11" Opacity="0.75" Text="장→씬 분할과 본문 생성에 반영. 선정성 100%면 본문 전체가 성적 장면으로 나옵니다. 18+ 등급일 때 노골적으로 표현. 관련 법규·개인 용도로만." TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
@@ -539,32 +553,6 @@
                             TickFrequency="5"
                             Value="{Binding DialogueRatio}" />
 
-                        <!--  본문 수위(성인) 설정 — 무검열 모델일 때만 표시  -->
-                        <Border Margin="0,0,0,8" Padding="10" Background="#33D84315" CornerRadius="6" Visibility="{Binding IsUncensoredModel, Converter={StaticResource BoolToVis}}">
-                            <StackPanel>
-                                <TextBlock Margin="0,0,0,6" FontWeight="SemiBold" Foreground="#FFFF8A65" Text="🔞 본문 수위 (무검열 모델 전용)" />
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0" Margin="0,0,4,0">
-                                        <TextBlock Margin="0,0,0,2" FontSize="11" Text="이용 등급" />
-                                        <ComboBox ItemsSource="{Binding ContentRatingOptions}" SelectedItem="{Binding Project.ContentRating}" Style="{StaticResource MaterialDesignOutlinedComboBox}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Margin="4,0,4,0">
-                                        <TextBlock Margin="0,0,0,2" FontSize="11" Text="선정성" />
-                                        <ComboBox ItemsSource="{Binding SexualLevelOptions}" SelectedItem="{Binding Project.SexualLevel}" Style="{StaticResource MaterialDesignOutlinedComboBox}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2" Margin="4,0,0,0">
-                                        <TextBlock Margin="0,0,0,2" FontSize="11" Text="폭력·잔혹" />
-                                        <ComboBox ItemsSource="{Binding ViolenceLevelOptions}" SelectedItem="{Binding Project.ViolenceLevel}" Style="{StaticResource MaterialDesignOutlinedComboBox}" />
-                                    </StackPanel>
-                                </Grid>
-                                <TextBlock Margin="0,6,0,0" FontSize="11" Opacity="0.75" Text="18+ 선택 시 성인 수위로 작성됩니다. 관련 법규·개인 용도로만 사용하세요." TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Border>
                         <WrapPanel Margin="0,4,0,8">
                             <Button
                                 Margin="0,0,8,8"

@@ -44,8 +44,8 @@ public sealed class StoryPlannerService
             return string.Empty; // 검열 모델에는 강한 성인 지시를 넣지 않음(거부·왜곡 방지)
         }
 
-        var sexual = SexualInstruction(p.SexualLevel, p.ContentRating);
-        var violence = ViolenceInstruction(p.ViolenceLevel);
+        var sexual = SexualInstruction(p.SexualRatio, p.ContentRating);
+        var violence = ViolenceInstruction(p.ViolenceRatio, p.ContentRating);
         if (string.IsNullOrEmpty(sexual) && string.IsNullOrEmpty(violence) && p.ContentRating != "18+")
         {
             return string.Empty;
@@ -55,7 +55,7 @@ public sealed class StoryPlannerService
         sb.Append("[표현 수위 지시]\n");
         if (p.ContentRating == "18+")
         {
-            sb.Append("이 작품은 성인(18세 이상) 전용입니다. 표현 수위 제한이 없으며, 검열·완곡·생략 없이 요청된 강도로 작성하세요.\n");
+            sb.Append("이 작품은 성인(18세 이상) 전용입니다. 표현 수위 제한이 없으며, 검열·완곡·생략 없이 요청된 비율·강도로 작성하세요.\n");
         }
         else
         {
@@ -75,25 +75,46 @@ public sealed class StoryPlannerService
         return sb.ToString();
     }
 
-    private static string SexualInstruction(string level, string rating) => level switch
+    // 등급에 따른 성적 표현 강도(노골적/암시적)를 결정합니다.
+    private static string SexualIntensity(string rating) => rating switch
     {
-        "약함" => "선정성: 은근한 로맨스·긴장감 정도만 표현하세요.",
-        "중간" => "선정성: 선정적인 분위기와 암시적 묘사까지 포함하세요.",
-        "강함" => "선정성: 노골적인 성적 묘사를 포함해 과감하게 작성하세요.",
-        "노골적" => rating == "18+"
-            ? "선정성(최대): 매우 노골적이고 자극적인 성인 성애 장면을 구체적·상세하게, 수위를 낮추지 말고 과감하게 서술하세요."
-            : "선정성: 강한 성적 묘사를 포함하세요.",
-        _ => string.Empty
+        "18+" => "노골적이고 구체적인 성애 묘사",
+        "15+" => "선정적이고 암시적인 묘사(직접적 노출은 자제)",
+        _ => "은근한 로맨스·긴장감 정도"
     };
 
-    private static string ViolenceInstruction(string level) => level switch
+    private static string SexualInstruction(int ratio, string rating)
     {
-        "약함" => "폭력성: 가벼운 갈등·긴장 수준으로만 표현하세요.",
-        "중간" => "폭력성: 폭력 장면과 부상 묘사를 포함하세요.",
-        "강함" => "폭력성: 격렬한 폭력과 유혈 묘사를 포함하세요.",
-        "잔혹" => "폭력성(최대): 잔혹하고 고어한 묘사까지 구체적으로 서술하세요.",
-        _ => string.Empty
-    };
+        ratio = Math.Clamp(ratio, 0, 100);
+        if (ratio <= 0)
+        {
+            return string.Empty;
+        }
+
+        var proportion = ratio >= 90
+            ? "사실상 본문 전체(거의 100%)를 성적/성애 장면으로 구성하세요"
+            : ratio >= 60
+                ? $"본문의 상당 부분(약 {ratio}%)을 성적 장면으로 채우세요"
+                : $"본문에서 성적/선정적 장면의 비중을 약 {ratio}%로 맞추세요";
+        return $"선정성 비율 {ratio}%: {proportion}. 표현 강도는 '{SexualIntensity(rating)}' 수준으로.";
+    }
+
+    private static string ViolenceInstruction(int ratio, string rating)
+    {
+        ratio = Math.Clamp(ratio, 0, 100);
+        if (ratio <= 0)
+        {
+            return string.Empty;
+        }
+
+        var intensity = rating == "18+" ? "잔혹하고 고어한 묘사까지" : rating == "15+" ? "강한 폭력·유혈 묘사" : "가벼운 폭력·긴장 수준";
+        var proportion = ratio >= 90
+            ? "본문 대부분을 격렬한 폭력/전투 장면으로 구성하세요"
+            : ratio >= 60
+                ? $"본문의 상당 부분(약 {ratio}%)을 폭력 장면으로 채우세요"
+                : $"본문에서 폭력·잔혹 장면의 비중을 약 {ratio}%로 맞추세요";
+        return $"폭력성 비율 {ratio}%: {proportion}. 표현 강도는 '{intensity}' 수준으로.";
+    }
 
     /// <summary>
     /// 전체 시놉시스를 생성합니다. (본문은 쓰지 않음)
@@ -166,6 +187,7 @@ public sealed class StoryPlannerService
             + "전체를 **발단 → 전개 → 위기 → 절정 → 결말**의 이야기 흐름으로 구성하고, 아래 단계 배치를 '정확히' 따르세요. "
             + "발단 장에서는 결말이나 큰 사건을 미리 터뜨리지 말고 도입에 집중하고, 절정 장에서 핵심 갈등이 폭발하며, 결말 장에서 마무리하세요.\n"
             + $"[장별 이야기 단계]\n{plan}\n\n"
+            + MaturitySection(project)
             + "각 장을 JSON 배열의 원소로 '순서대로' 출력하세요. 각 원소는 다음 키를 가집니다: "
             + "\"phase\"(이야기 단계: 발단/전개/위기/절정/결말 중 하나), \"title\"(장 제목), \"summary\"(장 요약), \"purpose\"(장 목적), \"conflict\"(갈등), \"reveal\"(반전), \"ending\"(종료 상태). "
             + "JSON 배열만 출력하세요.";
@@ -208,7 +230,8 @@ public sealed class StoryPlannerService
             + $"\n\n[전체 시놉시스 요약]\n{Shorten(project.Synopsis, 600)}\n\n"
             + phaseLine
             + $"[현재 장]\n제목: {chapter.Title}\n요약: {chapter.Summary}\n목적: {chapter.Purpose}\n갈등: {chapter.Conflict}\n반전: {chapter.Reveal}\n종료: {chapter.Ending}\n\n"
-            + "[요청] 이 장을 3~6개의 Scene으로 나누세요. 각 Scene을 JSON 배열의 원소로 출력하세요. 각 원소 키: "
+            + MaturitySection(project)
+            + "[요청] 이 장을 3~6개의 Scene으로 나누세요. 각 Scene의 목표·갈등·결과에 위 표현 수위를 반영하세요. 각 Scene을 JSON 배열의 원소로 출력하세요. 각 원소 키: "
             + "\"title\"(Scene 제목), \"summary\"(요약), \"goal\"(목표), \"characters\"(등장인물), \"location\"(장소), \"conflict\"(갈등), \"result\"(결과), \"nextLink\"(다음 Scene 연결). "
             + "JSON 배열만 출력하세요.";
 
@@ -348,7 +371,8 @@ public sealed class StoryPlannerService
             + $"\n\n[현재 장]\n{chapter.Title} — {chapter.Summary}\n"
             + phaseLine
             + $"[현재 Scene]\n제목: {scene.Title}\n요약: {scene.Summary}\n목표: {scene.Goal}\n갈등: {scene.Conflict}\n결과: {scene.Result}\n\n"
-            + "[요청] 이 Scene을 시간 순서대로 4~6개의 세부 사건(비트)으로 나누세요. 각 비트를 한 문장으로 설명한 "
+            + MaturitySection(project)
+            + "[요청] 이 Scene을 시간 순서대로 4~6개의 세부 사건(비트)으로 나누세요. 위 표현 수위를 비트에 반영하세요. 각 비트를 한 문장으로 설명한 "
             + "JSON 문자열 배열(예: [\"...\", \"...\"])로만 출력하세요.";
 
         var reply = await _chat.AskAsync(new[] { new ChatTurn("system", system), new ChatTurn("user", user) });

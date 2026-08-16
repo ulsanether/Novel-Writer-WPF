@@ -85,12 +85,6 @@ public partial class StoryPlannerViewModel : ObservableObject
     /// <summary>콘텐츠 이용 등급 목록입니다.</summary>
     public IReadOnlyList<string> ContentRatingOptions { get; } = new[] { "전체 이용가", "12+", "15+", "18+" };
 
-    /// <summary>선정성 수위 목록입니다.</summary>
-    public IReadOnlyList<string> SexualLevelOptions { get; } = new[] { "없음", "약함", "중간", "강함", "노골적" };
-
-    /// <summary>폭력·잔혹 수위 목록입니다.</summary>
-    public IReadOnlyList<string> ViolenceLevelOptions { get; } = new[] { "없음", "약함", "중간", "강함", "잔혹" };
-
     /// <summary>참고자료 폴더의 문서 목록입니다.</summary>
     public ObservableCollection<ReferenceDocument> References { get; } = new();
 
