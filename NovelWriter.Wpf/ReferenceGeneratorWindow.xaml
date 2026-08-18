@@ -1,4 +1,4 @@
-﻿<Window
+<Window
     x:Class="NovelWriter.Wpf.ReferenceGeneratorWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -54,6 +54,14 @@
             VerticalScrollBarVisibility="Auto" />
 
         <DockPanel Margin="0,0,0,8" DockPanel.Dock="Top">
+            <CheckBox
+                Margin="0,0,12,0"
+                VerticalAlignment="Center"
+                Content="18+ (노골적 성인 묘사)"
+                DockPanel.Dock="Left"
+                IsChecked="{Binding IsAdult}"
+                ToolTip="체크하면 성교·자위·다수(그룹) 등 노골적인 성적 묘사를 강제로 포함해 생성합니다."
+                Visibility="{Binding IsAdultUnlocked, Converter={StaticResource BoolToVis}}" />
             <Button
                 Margin="0,0,8,0"
                 Command="{Binding AutoFillCommand}"

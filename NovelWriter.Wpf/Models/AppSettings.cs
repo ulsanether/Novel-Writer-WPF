@@ -136,6 +136,11 @@ public sealed class AppSettings
     public string ComfyUiCheckpoint { get; set; } = string.Empty;
 
     /// <summary>
+    /// ComfyUI에서 적용할 LoRA 파일명을 가져오거나 설정합니다. (비우면 LoRA 없음)
+    /// </summary>
+    public string ComfyUiLora { get; set; } = string.Empty;
+
+    /// <summary>
     /// 이미지 서버 실행에 사용할 하드웨어 프로파일 키를 가져오거나 설정합니다. (Auto/High/Medium/Low/Cpu)
     /// </summary>
     public string ImageHardware { get; set; } = "Auto";
@@ -144,4 +149,14 @@ public sealed class AppSettings
     /// 기본 화풍(이미지 스타일) 설정을 가져오거나 설정합니다. (작품 생성 시 초기값)
     /// </summary>
     public ImageStyleSettings ImageStyle { get; set; } = new();
+
+    /// <summary>
+    /// 첫 실행 설치 마법사를 완료(또는 건너뜀)했는지 여부입니다.
+    /// </summary>
+    public bool SetupCompleted { get; set; }
+
+    /// <summary>
+    /// 성인(18+) 콘텐츠 잠금 해제용 비밀번호입니다. (기본값 0000)
+    /// </summary>
+    public string AdultPassword { get; set; } = "0000";
 }

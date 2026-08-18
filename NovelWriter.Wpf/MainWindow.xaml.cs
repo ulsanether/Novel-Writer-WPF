@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -28,6 +28,9 @@ public partial class MainWindow : Window
     private readonly ChatService _chatService;
     private readonly ImageServiceRouter _imageService = new();
     private readonly NovelProjectService _novelProjectService;
+    private readonly OllamaService _ollamaServiceRef;
+    private readonly OllamaSetupService _ollamaSetupService = new();
+    private readonly ComfyUiSetupService _comfyUiSetupServiceRef;
 
     /// <summary>
     /// 메인 윈도우를 초기화합니다.
@@ -56,6 +59,8 @@ public partial class MainWindow : Window
         var settingsService = new SettingsService(appData);
         var imageSetupService = new ImageSetupService();
         var comfyUiSetupService = new ComfyUiSetupService();
+        _ollamaServiceRef = ollamaService;
+        _comfyUiSetupServiceRef = comfyUiSetupService;
         _novelProjectService = new NovelProjectService();
 
         _viewModel = new MainViewModel(
@@ -153,7 +158,31 @@ public partial class MainWindow : Window
         {
             SetupSpellChecking();
             await _viewModel.InitializeAsync();
+            ShowFirstRunSetupIfNeeded();
         };
+    }
+
+    /// <summary>
+    /// 첫 실행이면 설치 마법사를 띄웁니다. (완료·건너뜀 시 다시 안 뜸)
+    /// </summary>
+    private void ShowFirstRunSetupIfNeeded()
+    {
+        if (_viewModel.SetupCompleted)
+        {
+            return;
+        }
+
+        var setupVm = new FirstRunSetupViewModel(_viewModel, _ollamaServiceRef, _ollamaSetupService, _comfyUiSetupServiceRef)
+        {
+            FolderResolver = () =>
+            {
+                var dialog = new OpenFolderDialog { Title = "ComfyUI를 설치할 폴더 선택" };
+                return Task.FromResult(dialog.ShowDialog(this) == true ? dialog.FolderName : null);
+            }
+        };
+
+        var window = new FirstRunSetupWindow(setupVm) { Owner = this };
+        window.ShowDialog();
     }
 
     /// <summary>
@@ -412,6 +441,7 @@ public partial class MainWindow : Window
         var viewModel = new ReferenceGeneratorViewModel(_chatService, _imageService, _viewModel.ReferenceFolderPath)
         {
             StylePrefix = _viewModel.CurrentStylePrefix,
+            IsAdultUnlocked = _viewModel.IsAdultUnlocked,
             InsertImageToEditor = InsertImageIntoEditor,
             SavePathResolver = (suggested, subFolder) =>
             {
@@ -495,10 +525,15 @@ public partial class MainWindow : Window
         var project = _viewModel.CurrentProject?.Story ?? _storyProjectService.Load();
         // 현재 화풍(이미지 스타일)을 설계에 반영 (삽화 생성 프롬프트에 사용됨)
         project.ImageStylePrefix = _viewModel.CurrentStylePrefix;
+        if (!_viewModel.IsAdultUnlocked && project.ContentRating == "18+")
+        {
+            project.ContentRating = "15+"; // 잠금 상태에서는 18+ 등급 해제
+        }
         var viewModel = new StoryPlannerViewModel(
             project, _storyProjectService, _storyPlannerService,
             new ReferenceLibraryService(), _imageService, _viewModel.ReferenceFolderPath)
         {
+            IsAdultUnlocked = _viewModel.IsAdultUnlocked,
             InsertToEditor = text =>
             {
                 _viewModel.Content = string.IsNullOrEmpty(_viewModel.Content)

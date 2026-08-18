@@ -1,4 +1,4 @@
-﻿<Window
+<Window
     x:Class="NovelWriter.Wpf.StoryPlannerWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -34,10 +34,10 @@
             Grid.Column="0"
             Margin="0,0,10,0">
             <Button
-                Margin="0,0,0,8"
+                Margin="0,8,0,0"
                 Command="{Binding GenerateSynopsisCommand}"
                 Content="전체 시놉시스 생성"
-                DockPanel.Dock="Top"
+                DockPanel.Dock="Bottom"
                 Style="{StaticResource MaterialDesignRaisedButton}" />
             <TabControl TabStripPlacement="Left">
                 <TabControl.ItemsPanel>

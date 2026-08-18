@@ -277,9 +277,11 @@ public static class ImageStyleCatalog
         return string.Join(", ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
     }
 
-    // 콘텐츠 이용 등급에 따른 긍정 프롬프트. (18+는 성인물을 명시적으로 유도)
+    // 콘텐츠 이용 등급에 따른 긍정 프롬프트. (18+는 성인물을 명시적으로 유도 — 명시적 태그 포함)
     private static string ContentRatingPositive(string rating)
-        => rating == "18+" ? "nsfw, explicit, adult content, mature, uncensored" : string.Empty;
+        => rating == "18+"
+            ? "nsfw, explicit, adult content, mature, uncensored, nude, completely nude, exposed breasts, exposed genitalia, sexual content"
+            : string.Empty;
 
     private static string RealismFragment(int v)
         => v <= 25 ? "stylized, artistic" : v >= 75 ? "photorealistic, lifelike detail" : string.Empty;

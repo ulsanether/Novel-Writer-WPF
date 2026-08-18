@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows.Media;
@@ -67,6 +67,30 @@ public partial class MainViewModel : ObservableObject
     public string ReferenceFolderPath => _referenceFolder;
 
     // ── 작품 프로젝트(.novel) 통합 관리 ──
+
+    /// <summary>첫 실행 설치 마법사를 완료(또는 건너뜀)했는지 여부입니다.</summary>
+    [ObservableProperty]
+    private bool _setupCompleted;
+
+    // ── 성인(18+) 콘텐츠 잠금 ──
+
+    private string _adultPassword = "0000";
+
+    /// <summary>성인(18+) 콘텐츠가 잠금 해제되었는지 여부입니다. (세션 한정, 저장 안 함)</summary>
+    [ObservableProperty]
+    private bool _isAdultUnlocked;
+
+    /// <summary>잠금 해제용 비밀번호 입력값입니다.</summary>
+    [ObservableProperty]
+    private string _adultPasswordInput = string.Empty;
+
+    /// <summary>비밀번호 변경 시 새 비밀번호 입력값입니다.</summary>
+    [ObservableProperty]
+    private string _adultNewPasswordInput = string.Empty;
+
+    /// <summary>성인 콘텐츠 잠금 상태 표시 텍스트입니다.</summary>
+    [ObservableProperty]
+    private string _adultLockStatus = "🔒 잠김";
 
     /// <summary>현재 열려 있는 작품 프로젝트입니다. (없으면 null)</summary>
     public NovelProject? CurrentProject { get; private set; }
@@ -317,6 +341,29 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private ComfyUiSetupService.ComfyModel? _selectedComfyModel = ComfyUiSetupService.RecommendedModels[0];
 
+    /// <summary>ComfyUI 체크포인트 파일명 직접 지정입니다. (비우면 추천 모델 선택 사용)</summary>
+    [ObservableProperty]
+    private string _comfyUiCheckpointName = string.Empty;
+
+    /// <summary>ComfyUI에서 적용할 LoRA 파일명입니다. (비우면 LoRA 없음)</summary>
+    [ObservableProperty]
+    private string _comfyUiLora = string.Empty;
+
+    /// <summary>URL로 내려받을 모델/LoRA 주소입니다. (Civitai 등)</summary>
+    [ObservableProperty]
+    private string _customModelUrl = string.Empty;
+
+    /// <summary>URL 다운로드 대상 종류입니다. (체크포인트/LoRA)</summary>
+    [ObservableProperty]
+    private string _customModelKind = "체크포인트";
+
+    /// <summary>URL 다운로드 시 저장할 파일명입니다.</summary>
+    [ObservableProperty]
+    private string _customModelFileName = string.Empty;
+
+    /// <summary>URL 다운로드 대상 종류 목록입니다.</summary>
+    public IReadOnlyList<string> CustomModelKindOptions { get; } = new[] { "체크포인트", "LoRA" };
+
     /// <summary>하드웨어(VRAM) 프로파일 목록입니다.</summary>
     public IReadOnlyList<HardwareProfile> HardwareProfiles { get; } = new[]
     {
@@ -382,7 +429,9 @@ public partial class MainViewModel : ObservableObject
     public IReadOnlyList<string> StyleCharacterCountOptions => ImageStyleCatalog.CharacterCountLabels;
 
     /// <summary>콘텐츠 이용 등급 목록입니다. (18+는 인물·자유 생성 모두에서 선택 가능)</summary>
-    public IReadOnlyList<string> StyleContentRatingOptions => ImageStyleCatalog.ContentRatingLabels;
+    public IReadOnlyList<string> StyleContentRatingOptions => IsAdultUnlocked
+        ? ImageStyleCatalog.ContentRatingLabels
+        : ImageStyleCatalog.ContentRatingLabels.Where(r => r != "18+").ToArray();
 
     /// <summary>현재 생성 대상이 인물(캐릭터)인지 여부입니다. (인물 전용 옵션 표시 제어)</summary>
     [ObservableProperty]
@@ -572,6 +621,19 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnUseComfyUiChanged(bool value)
         => _imageService.Backend = value ? ImageBackendKind.ComfyUi : ImageBackendKind.A1111;
+
+    partial void OnComfyUiLoraChanged(string value) => _imageService.Comfy.LoraName = value.Trim();
+
+    partial void OnComfyUiCheckpointNameChanged(string value) => _imageService.Comfy.CheckpointName = value.Trim();
+
+    partial void OnIsAdultUnlockedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(StyleContentRatingOptions));
+        if (!value && StyleContentRating == "18+")
+        {
+            StyleContentRating = "전체 이용가"; // 잠금 시 이미지 등급도 18+ 해제
+        }
+    }
 
     /// <summary>
     /// 현재 선택된 백엔드의 연결을 확인합니다.
@@ -864,12 +926,156 @@ public partial class MainViewModel : ObservableObject
     {
         var comfy = _imageService.Comfy;
         comfy.CheckpointName = model.FileName;
+        ComfyUiCheckpointName = model.FileName;
         comfy.Steps = model.Steps;
         comfy.CfgScale = model.Cfg;
         comfy.Sampler = model.Sampler;
         comfy.Scheduler = model.Scheduler;
         comfy.Width = model.Width;
         comfy.Height = model.Height;
+    }
+
+    /// <summary>
+    /// 사용자가 붙여넣은 URL로 체크포인트/LoRA(.safetensors)를 ComfyUI 모델 폴더로 내려받습니다. (Civitai 등)
+    /// </summary>
+    [RelayCommand]
+    private async Task DownloadCustomModelAsync()
+    {
+        if (IsImageSetupBusy)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(CustomModelUrl))
+        {
+            ImageSetupLog += "다운로드 URL을 입력하세요.\n";
+            return;
+        }
+
+        var url = CustomModelUrl.Trim();
+        var fileName = CustomModelFileName.Trim();
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            try
+            {
+                fileName = Path.GetFileName(new Uri(url).AbsolutePath);
+            }
+            catch
+            {
+                fileName = string.Empty;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            fileName = "custom_model";
+        }
+
+        if (!fileName.EndsWith(".safetensors", StringComparison.OrdinalIgnoreCase))
+        {
+            fileName += ".safetensors";
+        }
+
+        if (!_comfyUiSetupService.IsInstalled(ComfyUiPath))
+        {
+            ImageSetupLog += "먼저 ComfyUI를 설치하세요.\n";
+            return;
+        }
+
+        IsImageSetupBusy = true;
+        ImageSetupLog = string.Empty;
+        var progress = new Progress<string>(line => ImageSetupLog += line + "\n");
+        var kind = CustomModelKind == "LoRA" ? "loras" : "checkpoints";
+
+        try
+        {
+            var ok = await _comfyUiSetupService.DownloadFromUrlAsync(ComfyUiPath, url, fileName, kind, progress);
+            if (ok && kind == "checkpoints")
+            {
+                _imageService.Comfy.CheckpointName = fileName;
+                await PersistSettingsAsync();
+            }
+        }
+        finally
+        {
+            IsImageSetupBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// ComfyUI-Manager(커스텀 노드 관리자)를 설치합니다. (NSFW·확장 표현용 커스텀 노드 설치에 사용)
+    /// </summary>
+    [RelayCommand]
+    private async Task InstallComfyUiManagerAsync()
+    {
+        if (IsImageSetupBusy)
+        {
+            return;
+        }
+
+        if (!_comfyUiSetupService.IsInstalled(ComfyUiPath))
+        {
+            ImageSetupLog += "먼저 ComfyUI를 설치하세요.\n";
+            return;
+        }
+
+        IsImageSetupBusy = true;
+        ImageSetupLog = string.Empty;
+        var progress = new Progress<string>(line => ImageSetupLog += line + "\n");
+        try
+        {
+            await _comfyUiSetupService.InstallComfyUiManagerAsync(ComfyUiPath, progress);
+        }
+        finally
+        {
+            IsImageSetupBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// ComfyUI 웹 UI를 브라우저로 엽니다. (Manager에서 커스텀 노드 설치)
+    /// </summary>
+    [RelayCommand]
+    private void OpenComfyUiWeb()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = ComfyUiBaseUrl,
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            ImageSetupLog += "웹 UI를 열지 못했습니다. 주소를 확인하세요: " + ComfyUiBaseUrl + "\n";
+        }
+    }
+
+    /// <summary>ComfyUI LoRA 폴더를 탐색기로 엽니다.</summary>
+    [RelayCommand]
+    private void OpenComfyLorasFolder()
+    {
+        var path = _comfyUiSetupService.GetLorasFolder(ComfyUiPath);
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            ImageSetupLog += "먼저 ComfyUI를 설치하세요.\n";
+            return;
+        }
+
+        try
+        {
+            System.IO.Directory.CreateDirectory(path);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // 무시
+        }
     }
 
     /// <summary>
@@ -1962,6 +2168,58 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
+    /// 성인(18+) 콘텐츠 잠금을 비밀번호로 해제합니다.
+    /// </summary>
+    [RelayCommand]
+    private void UnlockAdult()
+    {
+        if (string.Equals(AdultPasswordInput, _adultPassword, StringComparison.Ordinal))
+        {
+            IsAdultUnlocked = true;
+            AdultPasswordInput = string.Empty;
+            AdultLockStatus = "🔓 해제됨";
+        }
+        else
+        {
+            AdultLockStatus = "비밀번호가 다릅니다.";
+        }
+    }
+
+    /// <summary>
+    /// 성인(18+) 콘텐츠를 다시 잠급니다.
+    /// </summary>
+    [RelayCommand]
+    private void LockAdult()
+    {
+        IsAdultUnlocked = false;
+        AdultLockStatus = "🔒 잠김";
+    }
+
+    /// <summary>
+    /// 성인 콘텐츠 잠금 비밀번호를 변경합니다. (잠금 해제 상태에서만)
+    /// </summary>
+    [RelayCommand]
+    private async Task ChangeAdultPasswordAsync()
+    {
+        if (!IsAdultUnlocked)
+        {
+            AdultLockStatus = "먼저 비밀번호로 잠금을 해제하세요.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(AdultNewPasswordInput))
+        {
+            AdultLockStatus = "새 비밀번호를 입력하세요.";
+            return;
+        }
+
+        _adultPassword = AdultNewPasswordInput.Trim();
+        AdultNewPasswordInput = string.Empty;
+        AdultLockStatus = "비밀번호가 변경되었습니다.";
+        await PersistSettingsAsync();
+    }
+
+    /// <summary>
     /// 참고자료 서랍을 열거나 닫습니다.
     /// </summary>
     [RelayCommand]
@@ -2548,8 +2806,11 @@ public partial class MainViewModel : ObservableObject
             ComfyUiBaseUrl = ComfyUiBaseUrl,
             ComfyUiPath = ComfyUiPath,
             ComfyUiCheckpoint = _imageService.Comfy.CheckpointName,
+            ComfyUiLora = _imageService.Comfy.LoraName,
             ImageHardware = (SelectedHardware ?? HardwareProfiles[0]).Key,
-            ImageStyle = CurrentStyle()
+            ImageStyle = CurrentStyle(),
+            SetupCompleted = SetupCompleted,
+            AdultPassword = _adultPassword
         });
     }
 
@@ -2587,12 +2848,18 @@ public partial class MainViewModel : ObservableObject
         ImageWebUiPath = settings.ImageWebUiPath ?? string.Empty;
         ComfyUiBaseUrl = string.IsNullOrWhiteSpace(settings.ComfyUiBaseUrl) ? "http://127.0.0.1:8188" : settings.ComfyUiBaseUrl;
         ComfyUiPath = settings.ComfyUiPath ?? string.Empty;
+        SetupCompleted = settings.SetupCompleted;
+        _adultPassword = string.IsNullOrWhiteSpace(settings.AdultPassword) ? "0000" : settings.AdultPassword;
         UseComfyUi = true; // A1111 제거 — ComfyUI만 사용
         SelectedHardware = HardwareProfiles.FirstOrDefault(h => string.Equals(h.Key, settings.ImageHardware, StringComparison.OrdinalIgnoreCase)) ?? HardwareProfiles[0];
         _imageService.A1111.BaseUrl = ImageBaseUrl;
         _imageService.Comfy.BaseUrl = ComfyUiBaseUrl;
         _imageService.Backend = UseComfyUi ? ImageBackendKind.ComfyUi : ImageBackendKind.A1111;
         LoadStyle(settings.ImageStyle);
+        if (!IsAdultUnlocked && StyleContentRating == "18+")
+        {
+            StyleContentRating = "전체 이용가"; // 잠금 상태에서는 18+ 등급 해제
+        }
         if (!string.IsNullOrWhiteSpace(settings.ComfyUiCheckpoint))
         {
             _imageService.Comfy.CheckpointName = settings.ComfyUiCheckpoint;
@@ -2605,6 +2872,9 @@ public partial class MainViewModel : ObservableObject
                 SelectedComfyModel = known;
             }
         }
+        _imageService.Comfy.LoraName = string.IsNullOrWhiteSpace(settings.ComfyUiLora) ? string.Empty : settings.ComfyUiLora;
+        ComfyUiLora = _imageService.Comfy.LoraName;
+        ComfyUiCheckpointName = _imageService.Comfy.CheckpointName ?? string.Empty;
         _referenceFolder = settings.ReferenceFolder ?? string.Empty;
         RaiseLocalizedPropertiesChanged();
     }

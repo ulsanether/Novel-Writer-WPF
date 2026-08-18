@@ -39,6 +39,12 @@ public sealed class ComfyUiImageService : IImageBackend
     /// <summary>사용할 체크포인트 파일명입니다. 비어 있으면 서버에서 첫 번째를 자동 선택합니다.</summary>
     public string CheckpointName { get; set; } = string.Empty;
 
+    /// <summary>적용할 LoRA 파일명입니다. 비어 있으면 LoRA를 적용하지 않습니다.</summary>
+    public string LoraName { get; set; } = string.Empty;
+
+    /// <summary>LoRA 적용 강도입니다. (모델/CLIP 공통, 0~1)</summary>
+    public double LoraStrength { get; set; } = 0.8;
+
     /// <summary>
     /// 서버가 실행 중인지 확인합니다.
     /// </summary>
@@ -161,6 +167,51 @@ public sealed class ComfyUiImageService : IImageBackend
     }
 
     /// <summary>
+    /// 서버에 설치된 LoRA(.safetensors) 목록을 조회합니다.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> ListLorasAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var response = await HttpClient.GetAsync($"{Root()}/object_info/LoraLoader", cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return Array.Empty<string>();
+            }
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            var arr = doc.RootElement
+                .GetProperty("LoraLoader")
+                .GetProperty("input")
+                .GetProperty("required")
+                .GetProperty("lora_name")[0];
+
+            if (arr.ValueKind != JsonValueKind.Array)
+            {
+                return Array.Empty<string>();
+            }
+
+            var result = new List<string>();
+            foreach (var item in arr.EnumerateArray())
+            {
+                var name = item.GetString();
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    result.Add(name);
+                }
+            }
+
+            return result;
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    /// <summary>
     /// 사용 가능한 체크포인트가 하나라도 있는지 확인합니다. (있으면 CheckpointName도 보정)
     /// </summary>
     public async Task<bool> HasCheckpointAsync(CancellationToken cancellationToken = default)
@@ -169,10 +220,10 @@ public sealed class ComfyUiImageService : IImageBackend
         return !string.IsNullOrWhiteSpace(checkpoint);
     }
 
-    // 기본 txt2img 워크플로우(그래프)를 만듭니다. (SDXL/SD 계열 공용)
+    // 기본 txt2img 워크플로우(그래프)를 만듭니다. (SDXL/SD 계열 공용, LoRA 있으면 삽입)
     private Dictionary<string, object> BuildWorkflow(string prompt, string checkpoint, long seed)
     {
-        return new Dictionary<string, object>
+        var workflow = new Dictionary<string, object>
         {
             ["4"] = Node("CheckpointLoaderSimple", new Dictionary<string, object> { ["ckpt_name"] = checkpoint }),
             ["5"] = Node("EmptyLatentImage", new Dictionary<string, object>
@@ -180,41 +231,62 @@ public sealed class ComfyUiImageService : IImageBackend
                 ["width"] = Width,
                 ["height"] = Height,
                 ["batch_size"] = 1
-            }),
-            ["6"] = Node("CLIPTextEncode", new Dictionary<string, object>
-            {
-                ["text"] = prompt,
-                ["clip"] = new object[] { "4", 1 }
-            }),
-            ["7"] = Node("CLIPTextEncode", new Dictionary<string, object>
-            {
-                ["text"] = NegativePrompt,
-                ["clip"] = new object[] { "4", 1 }
-            }),
-            ["3"] = Node("KSampler", new Dictionary<string, object>
-            {
-                ["seed"] = seed,
-                ["steps"] = Steps,
-                ["cfg"] = CfgScale,
-                ["sampler_name"] = Sampler,
-                ["scheduler"] = Scheduler,
-                ["denoise"] = 1.0,
-                ["model"] = new object[] { "4", 0 },
-                ["positive"] = new object[] { "6", 0 },
-                ["negative"] = new object[] { "7", 0 },
-                ["latent_image"] = new object[] { "5", 0 }
-            }),
-            ["8"] = Node("VAEDecode", new Dictionary<string, object>
-            {
-                ["samples"] = new object[] { "3", 0 },
-                ["vae"] = new object[] { "4", 2 }
-            }),
-            ["9"] = Node("SaveImage", new Dictionary<string, object>
-            {
-                ["images"] = new object[] { "8", 0 },
-                ["filename_prefix"] = "NovelWriter"
             })
         };
+
+        var model = new object[] { "4", 0 };
+        var clip = new object[] { "4", 1 };
+
+        // LoRA가 지정되면 CheckpointLoaderSimple 뒤에 LoraLoader 노드를 끼워 model/clip을 연결합니다.
+        if (!string.IsNullOrWhiteSpace(LoraName))
+        {
+            workflow["10"] = Node("LoraLoader", new Dictionary<string, object>
+            {
+                ["lora_name"] = LoraName,
+                ["strength_model"] = LoraStrength,
+                ["strength_clip"] = LoraStrength,
+                ["model"] = model,
+                ["clip"] = clip
+            });
+            model = new object[] { "10", 0 };
+            clip = new object[] { "10", 1 };
+        }
+
+        workflow["6"] = Node("CLIPTextEncode", new Dictionary<string, object>
+        {
+            ["text"] = prompt,
+            ["clip"] = clip
+        });
+        workflow["7"] = Node("CLIPTextEncode", new Dictionary<string, object>
+        {
+            ["text"] = NegativePrompt,
+            ["clip"] = clip
+        });
+        workflow["3"] = Node("KSampler", new Dictionary<string, object>
+        {
+            ["seed"] = seed,
+            ["steps"] = Steps,
+            ["cfg"] = CfgScale,
+            ["sampler_name"] = Sampler,
+            ["scheduler"] = Scheduler,
+            ["denoise"] = 1.0,
+            ["model"] = model,
+            ["positive"] = new object[] { "6", 0 },
+            ["negative"] = new object[] { "7", 0 },
+            ["latent_image"] = new object[] { "5", 0 }
+        });
+        workflow["8"] = Node("VAEDecode", new Dictionary<string, object>
+        {
+            ["samples"] = new object[] { "3", 0 },
+            ["vae"] = new object[] { "4", 2 }
+        });
+        workflow["9"] = Node("SaveImage", new Dictionary<string, object>
+        {
+            ["images"] = new object[] { "8", 0 },
+            ["filename_prefix"] = "NovelWriter"
+        });
+
+        return workflow;
     }
 
     private static Dictionary<string, object> Node(string classType, Dictionary<string, object> inputs)

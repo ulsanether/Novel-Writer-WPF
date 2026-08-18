@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -82,8 +82,32 @@ public partial class StoryPlannerViewModel : ObservableObject
     [ObservableProperty]
     private bool _isUncensoredModel;
 
-    /// <summary>콘텐츠 이용 등급 목록입니다.</summary>
-    public IReadOnlyList<string> ContentRatingOptions { get; } = new[] { "전체 이용가", "12+", "15+", "18+" };
+    private bool _isAdultUnlocked;
+
+    /// <summary>성인(18+) 콘텐츠 잠금 해제 여부입니다. (설정에서 비밀번호로 해제)</summary>
+    public bool IsAdultUnlocked
+    {
+        get => _isAdultUnlocked;
+        set
+        {
+            if (_isAdultUnlocked == value)
+            {
+                return;
+            }
+
+            _isAdultUnlocked = value;
+            OnPropertyChanged(nameof(ContentRatingOptions));
+            if (!value && Project.ContentRating == "18+")
+            {
+                Project.ContentRating = "15+"; // 잠금 시 18+ 등급 해제
+            }
+        }
+    }
+
+    /// <summary>콘텐츠 이용 등급 목록입니다. (잠금 상태에서는 18+ 숨김)</summary>
+    public IReadOnlyList<string> ContentRatingOptions => IsAdultUnlocked
+        ? new[] { "전체 이용가", "12+", "15+", "18+" }
+        : new[] { "전체 이용가", "12+", "15+" };
 
     /// <summary>참고자료 폴더의 문서 목록입니다.</summary>
     public ObservableCollection<ReferenceDocument> References { get; } = new();

@@ -283,6 +283,128 @@ public sealed class ComfyUiSetupService
         return Directory.Exists(path) ? path : path; // 존재하지 않아도 경로는 알려줌
     }
 
+    /// <summary>
+    /// LoRA(.safetensors) 폴더 경로를 반환합니다. 없으면 null입니다.
+    /// </summary>
+    public string? GetLorasFolder(string? directory)
+    {
+        var runDir = ResolveRunDirectory(directory);
+        return runDir is null ? null : Path.Combine(runDir, "ComfyUI", "models", "loras");
+    }
+
+    /// <summary>
+    /// 커스텀 노드 폴더(custom_nodes) 경로를 반환합니다. 없으면 null입니다.
+    /// </summary>
+    public string? GetCustomNodesFolder(string? directory)
+    {
+        var runDir = ResolveRunDirectory(directory);
+        return runDir is null ? null : Path.Combine(runDir, "ComfyUI", "custom_nodes");
+    }
+
+    /// <summary>
+    /// 사용자가 붙여넣은 URL로 체크포인트/LoRA(.safetensors)를 ComfyUI 모델 폴더로 내려받습니다.
+    /// Civitai 등에서 받은 직접 다운로드 링크를 사용합니다.
+    /// </summary>
+    /// <param name="directory">ComfyUI 설치 폴더입니다.</param>
+    /// <param name="url">직접 다운로드 URL입니다.</param>
+    /// <param name="fileName">저장 파일명(예: my_model.safetensors)입니다.</param>
+    /// <param name="kind">"loras"면 LoRA 폴더, 그 외엔 checkpoints 폴더입니다.</param>
+    /// <param name="progress">진행 로그입니다.</param>
+    /// <returns>성공 여부입니다.</returns>
+    public async Task<bool> DownloadFromUrlAsync(string? directory, string url, string fileName, string kind, IProgress<string> progress)
+    {
+        var runDir = ResolveRunDirectory(directory);
+        if (runDir is null)
+        {
+            progress.Report("먼저 ComfyUI를 설치하세요.");
+            return false;
+        }
+
+        var sub = kind == "loras" ? "loras" : "checkpoints";
+        var folder = Path.Combine(runDir, "ComfyUI", "models", sub);
+        Directory.CreateDirectory(folder);
+
+        var dest = Path.Combine(folder, fileName);
+        var part = dest + ".part";
+
+        if (File.Exists(dest))
+        {
+            progress.Report($"{fileName}은(는) 이미 있습니다.");
+            return true;
+        }
+
+        try { if (File.Exists(part)) File.Delete(part); } catch { /* 무시 */ }
+
+        progress.Report($"{fileName} 다운로드를 시작합니다.");
+        var ok = await DownloadAsync(url, part, progress).ConfigureAwait(false);
+        if (!ok)
+        {
+            try { File.Delete(part); } catch { /* 무시 */ }
+            return false;
+        }
+
+        try
+        {
+            if (File.Exists(dest)) File.Delete(dest);
+            File.Move(part, dest);
+        }
+        catch (Exception ex)
+        {
+            progress.Report("파일 정리 오류: " + ex.Message);
+            return false;
+        }
+
+        progress.Report($"준비 완료: {fileName} → {sub} 폴더");
+        return true;
+    }
+
+    /// <summary>
+    /// ComfyUI-Manager(커스텀 노드 관리자)를 git clone으로 custom_nodes에 설치합니다.
+    /// 설치 후 ComfyUI를 (재)시작하면 웹 UI에 Manager 버튼이 나타납니다.
+    /// </summary>
+    public async Task<bool> InstallComfyUiManagerAsync(string? directory, IProgress<string> progress)
+    {
+        var customNodes = GetCustomNodesFolder(directory);
+        if (customNodes is null)
+        {
+            progress.Report("먼저 ComfyUI를 설치하세요.");
+            return false;
+        }
+
+        var target = Path.Combine(customNodes, "ComfyUI-Manager");
+        if (Directory.Exists(target) && File.Exists(Path.Combine(target, "__init__.py")))
+        {
+            progress.Report("ComfyUI-Manager가 이미 설치되어 있습니다.");
+            return true;
+        }
+
+        // git 확보 (없으면 winget으로 설치)
+        if (!TryRun("git", "--version"))
+        {
+            if (!TryRun("winget", "--version"))
+            {
+                progress.Report("git이 없고 자동 설치기(winget)도 없습니다. https://git-scm.com 에서 설치해 주세요.");
+                return false;
+            }
+
+            progress.Report("git을 설치하는 중입니다...");
+            await RunAsync("winget", "install -e --id Git.Git --accept-source-agreements --accept-package-agreements", null, progress).ConfigureAwait(false);
+            if (!TryRun("git", "--version"))
+            {
+                progress.Report("git 설치를 확인하지 못했습니다. 프로그램을 다시 시작한 뒤 재시도해 주세요.");
+                return false;
+            }
+        }
+
+        Directory.CreateDirectory(customNodes);
+        progress.Report("ComfyUI-Manager를 설치하는 중입니다... (git clone)");
+        var ok = await RunAsync("git", $"clone --depth 1 https://github.com/ltdrdata/ComfyUI-Manager.git \"{target}\"", customNodes, progress).ConfigureAwait(false);
+        progress.Report(ok
+            ? "ComfyUI-Manager 설치 완료. ComfyUI를 (재)시작하면 웹 UI에 'Manager' 버튼이 생깁니다."
+            : "ComfyUI-Manager 설치 실패. 인터넷 연결을 확인하세요.");
+        return ok;
+    }
+
     // 7-Zip 실행 파일을 확보합니다. 없으면 winget으로 설치합니다.
     private async Task<string?> EnsureSevenZipAsync(IProgress<string> progress)
     {

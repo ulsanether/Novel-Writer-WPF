@@ -1,4 +1,4 @@
-﻿<Window
+<Window
     x:Class="NovelWriter.Wpf.SettingsHubWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -145,6 +145,63 @@
                                     Foreground="#FFFF8A65"
                                     Text="무검열(검열 해제) 모델입니다. 성인·폭력·불법 등 제한 없는 내용을 생성할 수 있으니, 관련 법규를 지켜 성인 본인만 개인 용도로 사용하세요. 생성 결과의 책임은 사용자에게 있습니다."
                                     TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <!--  성인(18+) 콘텐츠 잠금  -->
+                        <Border
+                            Margin="0,0,0,20"
+                            Padding="10"
+                            Background="#18808080"
+                            CornerRadius="6">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        FontWeight="SemiBold"
+                                        Text="🔞 성인(18+) 콘텐츠 잠금" />
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        DockPanel.Dock="Right"
+                                        FontSize="11"
+                                        Opacity="0.8"
+                                        Text="{Binding AdultLockStatus}" />
+                                </DockPanel>
+                                <TextBlock
+                                    Margin="0,0,0,8"
+                                    FontSize="11"
+                                    Opacity="0.7"
+                                    Text="잠금을 해제하면 참고자료 생성기에 18+ 옵션이 표시됩니다."
+                                    TextWrapping="Wrap" />
+                                <StackPanel Margin="0,0,0,8" Orientation="Horizontal">
+                                    <TextBox
+                                        Width="180"
+                                        Margin="0,0,8,0"
+                                        materialDesign:HintAssist.Hint="비밀번호"
+                                        Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                        Text="{Binding AdultPasswordInput, UpdateSourceTrigger=PropertyChanged}" />
+                                    <Button
+                                        Margin="0,0,8,0"
+                                        Command="{Binding UnlockAdultCommand}"
+                                        Content="잠금 해제"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" />
+                                    <Button
+                                        Command="{Binding LockAdultCommand}"
+                                        Content="잠금"
+                                        Style="{StaticResource MaterialDesignOutlinedButton}" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox
+                                        Width="180"
+                                        Margin="0,0,8,0"
+                                        materialDesign:HintAssist.Hint="새 비밀번호 (변경)"
+                                        Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                        Text="{Binding AdultNewPasswordInput, UpdateSourceTrigger=PropertyChanged}" />
+                                    <Button
+                                        Command="{Binding ChangeAdultPasswordCommand}"
+                                        Content="비밀번호 변경"
+                                        Style="{StaticResource MaterialDesignOutlinedButton}" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 
@@ -528,6 +585,11 @@
                                     Opacity="0.7"
                                     Text="{Binding SelectedComfyModel.Note}"
                                     TextWrapping="Wrap" />
+                                <TextBox
+                                    Margin="0,0,0,8"
+                                    materialDesign:HintAssist.Hint="체크포인트 파일명 직접 지정 (예: NudeXL.safetensors, 비우면 추천 모델 사용)"
+                                    Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                    Text="{Binding ComfyUiCheckpointName, UpdateSourceTrigger=PropertyChanged}" />
                                 <Border
                                     Margin="0,0,0,8"
                                     Padding="8,4"
@@ -555,6 +617,112 @@
                                         IsEnabled="{Binding IsImageSetupBusy, Converter={StaticResource InverseBool}}"
                                         Style="{StaticResource MaterialDesignOutlinedButton}"
                                         ToolTip="설치된 모델이 없으면 선택 모델을 자동으로 내려받아 연결합니다." />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!--  LoRA 적용 (언센서드 LoRA 등)  -->
+                        <Border
+                            Margin="0,0,0,14"
+                            Padding="14"
+                            Background="#18808080"
+                            CornerRadius="6">
+                            <StackPanel>
+                                <TextBlock
+                                    Margin="0,0,0,6"
+                                    FontWeight="SemiBold"
+                                    Text="LoRA 적용 (선택)" />
+                                <TextBox
+                                    Margin="0,0,0,8"
+                                    materialDesign:HintAssist.Hint="LoRA 파일명 (예: my_lora.safetensors, 비우면 적용 안 함)"
+                                    Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                    Text="{Binding ComfyUiLora, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock
+                                    Margin="0,0,0,8"
+                                    FontSize="11"
+                                    Opacity="0.7"
+                                    Text="LoRA는 ComfyUI의 models\loras 폴더에 넣어야 합니다. 파일명을 정확히 입력하면 생성 워크플로우에 자동으로 끼워 적용됩니다."
+                                    TextWrapping="Wrap" />
+                                <Button
+                                    HorizontalAlignment="Left"
+                                    Command="{Binding OpenComfyLorasFolderCommand}"
+                                    Content="LoRA 폴더 열기"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!--  커스텀 모델/LoRA URL 다운로드 (Civitai 등)  -->
+                        <Border
+                            Margin="0,0,0,14"
+                            Padding="14"
+                            Background="#18808080"
+                            CornerRadius="6">
+                            <StackPanel>
+                                <TextBlock
+                                    Margin="0,0,0,6"
+                                    FontWeight="SemiBold"
+                                    Text="모델/LoRA URL 다운로드 (Civitai 등)" />
+                                <TextBox
+                                    Margin="0,0,0,8"
+                                    materialDesign:HintAssist.Hint="직접 다운로드 URL (예: civitai.com/api/download/models/...)"
+                                    Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                    Text="{Binding CustomModelUrl, UpdateSourceTrigger=PropertyChanged}" />
+                                <StackPanel Margin="0,0,0,8" Orientation="Horizontal">
+                                    <ComboBox
+                                        Width="140"
+                                        Margin="0,0,8,0"
+                                        ItemsSource="{Binding CustomModelKindOptions}"
+                                        SelectedItem="{Binding CustomModelKind}"
+                                        Style="{StaticResource MaterialDesignOutlinedComboBox}" />
+                                    <TextBox
+                                        Width="240"
+                                        materialDesign:HintAssist.Hint="저장 파일명 (예: model.safetensors)"
+                                        Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                        Text="{Binding CustomModelFileName, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <TextBlock
+                                    Margin="0,0,0,8"
+                                    FontSize="11"
+                                    Opacity="0.7"
+                                    Text="언센서드(무검열) 체크포인트나 LoRA를 Civitai 등에서 받아 적용할 수 있습니다. 체크포인트는 models\checkpoints, LoRA는 models\loras 폴더로 저장됩니다."
+                                    TextWrapping="Wrap" />
+                                <Button
+                                    HorizontalAlignment="Left"
+                                    Command="{Binding DownloadCustomModelCommand}"
+                                    Content="다운로드"
+                                    IsEnabled="{Binding IsImageSetupBusy, Converter={StaticResource InverseBool}}"
+                                    Style="{StaticResource MaterialDesignRaisedButton}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!--  커스텀 노드 (ComfyUI-Manager)  -->
+                        <Border
+                            Margin="0,0,0,14"
+                            Padding="14"
+                            Background="#18808080"
+                            CornerRadius="6">
+                            <StackPanel>
+                                <TextBlock
+                                    Margin="0,0,0,6"
+                                    FontWeight="SemiBold"
+                                    Text="커스텀 노드 (ComfyUI-Manager)" />
+                                <TextBlock
+                                    Margin="0,0,0,8"
+                                    FontSize="11"
+                                    Opacity="0.7"
+                                    Text="Manager를 설치하면 ComfyUI 웹 UI에서 NSFW·표현 제어 등 다양한 커스텀 노드를 검색·설치해 워크플로우를 확장할 수 있습니다."
+                                    TextWrapping="Wrap" />
+                                <StackPanel Orientation="Horizontal">
+                                    <Button
+                                        Margin="0,0,8,0"
+                                        Command="{Binding InstallComfyUiManagerCommand}"
+                                        Content="Manager 설치"
+                                        IsEnabled="{Binding IsImageSetupBusy, Converter={StaticResource InverseBool}}"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" />
+                                    <Button
+                                        Command="{Binding OpenComfyUiWebCommand}"
+                                        Content="웹 UI 열기"
+                                        Style="{StaticResource MaterialDesignOutlinedButton}" />
                                 </StackPanel>
                             </StackPanel>
                         </Border>
